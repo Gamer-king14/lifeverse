@@ -20,6 +20,7 @@ header{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content
 button{border:0;border-radius:10px;padding:10px 13px;background:#263a53;color:white;font-weight:700;cursor:pointer}
 button.active{background:#1686a8;box-shadow:0 0 0 2px #8de7ff55}
 button:hover{filter:brightness(1.15)}
+#touchControls{display:none;position:fixed;left:14px;bottom:92px;z-index:5;gap:6px;flex-direction:column;align-items:center}#touchControls div{display:flex;gap:6px}#touchControls button{width:48px;height:44px;padding:0;font-size:20px;background:#152b43dd;border:1px solid #ffffff55;touch-action:none;user-select:none}#touchControls.visible{display:flex}
 #bottom{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:95vw}
 .swatch{width:38px;height:38px;padding:0;border:3px solid #ffffff55}.swatch.active{border-color:white;transform:translateY(-4px)}
 #hint{position:fixed;right:12px;bottom:14px;max-width:260px;font-size:12px;line-height:1.4}
@@ -46,6 +47,7 @@ button:hover{filter:brightness(1.15)}
  <button id="dayBtn">☀️ Tag / Nacht</button>
  <button id="eraseBtn">🧹 Blöcke entfernen</button>
 </div>
+<div id="touchControls" aria-label="Steuerung"><button data-key="w">▲</button><div><button data-key="a">◀</button><button data-key="s">▼</button><button data-key="d">▶</button></div></div>
 <div id="bottom" class="panel">
  <span style="font-size:12px">BLOCK:</span>
  <button class="swatch active" data-kind="grass" title="Gras" style="background:#58a94f"></button>
@@ -79,18 +81,18 @@ updateCamera();
 function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<7&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}}}
 let downX=0,downY=0, movedPointer=false;
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;movedPointer=false;downX=lastX=e.clientX;downY=lastY=e.clientY;try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}});
-renderer.domElement.addEventListener('pointerup',e=>{if(dragging&&!movedPointer&&Math.hypot(e.clientX-downX,e.clientY-downY)<10)pointer(e);dragging=false});
+renderer.domElement.addEventListener('pointerup',e=>{if(dragging&&!movedPointer&&Math.hypot(e.clientX-downX,e.clientY-downY)<18)pointer(e);dragging=false});
 renderer.domElement.addEventListener('pointercancel',()=>{dragging=false});
 renderer.domElement.addEventListener('pointermove',e=>{if(dragging){const dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)movedPointer=true;angle-=dx*.008;tilt=Math.max(.25,Math.min(1.35,tilt+dy*.006));lastX=e.clientX;lastY=e.clientY;updateCamera()}});
 renderer.domElement.addEventListener('wheel',e=>{radius=Math.max(8,Math.min(35,radius+e.deltaY*.02));updateCamera()});
 document.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{selected=b.dataset.kind;document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('status').textContent='Baumodus · '+b.title+' ausgewählt'});
-function setMode(m){mode=m;document.getElementById('buildBtn').classList.toggle('active',m==='build');document.getElementById('walkBtn').classList.toggle('active',m==='walk');document.getElementById('status').textContent=m==='build'?'Baumodus · '+selected+' ausgewählt':'Erkundungsmodus · WASD / Pfeiltasten'}
+function setMode(m){mode=m;document.getElementById('buildBtn').classList.toggle('active',m==='build');document.getElementById('walkBtn').classList.toggle('active',m==='walk');document.getElementById('touchControls').classList.toggle('visible',m==='walk');document.getElementById('status').textContent=m==='build'?'Baumodus · '+selected+' ausgewählt':'Erkundungsmodus · Richtungstasten oder WASD'}
 document.getElementById('buildBtn').onclick=()=>{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Baumodus · '+selected+' ausgewählt'};document.getElementById('walkBtn').onclick=()=>{setMode('walk');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active')};document.getElementById('eraseBtn').onclick=()=>{setMode('build');eraseMode=!eraseMode;document.getElementById('eraseBtn').classList.toggle('active',eraseMode);document.getElementById('status').textContent=eraseMode?'Radier-Modus · Block antippen zum Entfernen':'Baumodus · '+selected+' ausgewählt'};
 document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('lifeverse-world',JSON.stringify(blocks.map(b=>b.userData)));alert('Deine Welt wurde auf diesem Gerät gespeichert!')};
 document.getElementById('loadBtn').onclick=()=>{const data=JSON.parse(localStorage.getItem('lifeverse-world')||'null');if(!data){alert('Noch keine gespeicherte Welt gefunden.');return}clearWorld();data.forEach(b=>addBlock(b.x,b.y,b.z,b.type));alert('Deine Welt wurde geladen!')};
 document.getElementById('newBtn').onclick=()=>{if(confirm('Möchtest du eine neue Welt erstellen?'))makeWorld()};
 document.getElementById('dayBtn').onclick=()=>{night=!night;scene.background=new THREE.Color(night?0x101a3b:0x87c8ed);scene.fog.color.copy(scene.background);sun.intensity=night?.35:2;sun.color.set(night?0x9abaff:0xffffff)};
-const keys={};addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const keys={};addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#touchControls button').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>keys[k]=false;b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});
 function animate(){requestAnimationFrame(animate);if(mode==='walk'){const speed=.09;if(keys.w||keys.arrowup)player.z-=speed;if(keys.s||keys.arrowdown)player.z+=speed;if(keys.a||keys.arrowleft)player.x-=speed;if(keys.d||keys.arrowright)player.x+=speed;camera.position.x+=(player.x-camera.position.x)*.04;camera.position.z+=(player.z+8-camera.position.z)*.04;camera.position.y+=(5-camera.position.y)*.04;camera.lookAt(player.x,1,player.z)}renderer.render(scene,camera)}animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.textContent='Fertig! Viel Spaß beim Bauen.';setTimeout(()=>document.getElementById('loader').classList.add('hide'),450)},1500);
