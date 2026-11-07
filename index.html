@@ -106,6 +106,20 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 #miniMap.map-large{width:190px!important;height:190px!important}
 #miniMapSizeBtn{right:13px;top:147px;bottom:auto;padding:5px 7px;font-size:10px}
 }
+
+#playersMenu{position:fixed;inset:0;z-index:75;display:none;align-items:center;justify-content:center;padding:18px;background:#080c09c9;backdrop-filter:blur(7px)}
+#playersMenu.visible{display:flex}
+.players-card{width:min(360px,92vw);padding:20px;background:linear-gradient(145deg,#3b4435f7,#151b15f9);border:1px solid #a9ad8c;border-radius:13px;box-shadow:0 18px 60px #000c;color:#eee9d8}
+.players-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.players-head h2{font:900 20px Georgia,serif;letter-spacing:2px;margin:0}
+#playersClose{padding:7px 10px}
+#playersCount{font-size:12px;color:#bfe4ff;margin:0 0 10px}
+#playersRoster{display:grid;gap:8px;max-height:55vh;overflow:auto}
+.player-row{display:flex;align-items:center;gap:10px;padding:10px;background:#101710;border:1px solid #53654b;border-radius:9px}
+.player-dot{width:10px;height:10px;border-radius:50%;background:#65dc83;box-shadow:0 0 9px #65dc83;flex:none}
+.player-row strong{color:#8ed5ff;font-size:13px;overflow-wrap:anywhere}
+.player-row small{display:block;color:#b7c0ac;font-size:10px;margin-top:2px}
+@media(max-width:600px){#playersMenu{align-items:flex-start;padding-top:12vh}}
 </style>
 </head>
 <body>
@@ -171,10 +185,11 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   <div id="multiStatus">Noch nicht verbunden.</div>
  </div>
 </div>
+<div id="playersMenu" role="dialog" aria-modal="true" aria-label="Spieler in deiner Welt"><div class="players-card"><div class="players-head"><h2>👥 SPIELER IN DER WELT</h2><button id="playersClose">✖</button></div><div id="playersCount">1 Spieler in deiner Welt</div><div id="playersRoster"></div></div></div>
 <div id="game"></div>
 <header>
  <div class="logo" id="pauseLogo" role="button" tabindex="0" aria-label="Pause-Menü öffnen"><span class="mini-mark">L</span> LIFEVERSE <small>DEINE WELT. DEINE REGELN.</small></div>
- <div class="panel"><button id="multiOpen">👥 Multiplayer</button> <button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button> <button id="survivalBtn">🪓 Survival</button><div id="status">Baumodus · Gras ausgewählt</div></div>
+ <div class="panel"><button id="playersOpen">👥 Spieler</button> <button id="multiOpen">🌐 Multiplayer</button> <button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button> <button id="survivalBtn">🪓 Survival</button><div id="status">Baumodus · Gras ausgewählt</div></div>
 </header>
 <div id="toolbar">
  <button id="saveBtn">💾 Speichern</button>
@@ -331,11 +346,11 @@ function makeRemoteAvatar(id){if(remoteAvatars.has(id))return remoteAvatars.get(
  remote.position.set(0,0,0);scene.add(remote);remoteAvatars.set(id,remote);return remote;}
 function removeRemoteAvatar(id){const a=remoteAvatars.get(id);if(a){scene.remove(a);remoteAvatars.delete(id);}}
 function broadcastNet(data){if(!multiplayerActive)return;multiplayerConnections.forEach(c=>{if(c.open)try{c.send(data)}catch(e){console.warn('Multiplayer send failed',e)}});}
-function renderFriendList(){const box=document.getElementById('friendList');if(!box)return;box.replaceChildren();const online=multiplayerConnections.filter(c=>c.open);if(!online.length){const empty=document.createElement('span');empty.style.cssText='color:#aeb6a7;font-size:12px';empty.textContent='Noch keine Freunde verbunden.';box.appendChild(empty);return;}online.forEach(c=>{const chip=document.createElement('span');chip.className='friend-chip';chip.textContent='🟢 '+(c.peer||'Freund').slice(0,18);box.appendChild(chip);});}
+function renderPlayersMenu(){const roster=document.getElementById('playersRoster'),count=document.getElementById('playersCount');if(!roster||!count)return;roster.replaceChildren();const online=multiplayerConnections.filter(c=>c.open);count.textContent=(online.length+1)+' Spieler in deiner Welt';const add=(name,detail)=>{const row=document.createElement('div');row.className='player-row';const dot=document.createElement('span');dot.className='player-dot';const info=document.createElement('div');const strong=document.createElement('strong');strong.textContent=name;const small=document.createElement('small');small.textContent=detail;info.append(strong,small);row.append(dot,info);roster.appendChild(row);};add('Du','Dein Spieler');online.forEach(c=>add((c.peer||'Freund').slice(0,28),'🟢 Verbunden'));if(!online.length){const note=document.createElement('div');note.style.cssText='font-size:12px;color:#b7c0ac;padding:8px 2px';note.textContent='Noch ist niemand anderes in deiner Welt.';roster.appendChild(note);}}function renderFriendList(){const box=document.getElementById('friendList');if(!box)return;box.replaceChildren();const online=multiplayerConnections.filter(c=>c.open);if(!online.length){const empty=document.createElement('span');empty.style.cssText='color:#aeb6a7;font-size:12px';empty.textContent='Noch keine Freunde verbunden.';box.appendChild(empty);return;}online.forEach(c=>{const chip=document.createElement('span');chip.className='friend-chip';chip.textContent='🟢 '+(c.peer||'Freund').slice(0,18);box.appendChild(chip);});}
 function addChatLine(sender,message){const log=document.getElementById('chatLog');if(!log)return;if(log.children.length===1&&log.firstElementChild.textContent.startsWith('Noch keine Nachrichten'))log.replaceChildren();const line=document.createElement('div');line.className='chat-line';const name=document.createElement('b');name.textContent=sender+': ';line.appendChild(name);line.appendChild(document.createTextNode(message));log.appendChild(line);while(log.children.length>60)log.removeChild(log.firstChild);log.scrollTop=log.scrollHeight;}
 function sendChatMessage(){const input=document.getElementById('chatInput'),message=input.value.trim();if(!message)return;if(!multiplayerActive){setMultiStatus('Verbinde dich zuerst mit einem Freund.');return;}addChatLine('Du',message);broadcastNet({type:'chat',message:message.slice(0,180)});input.value='';input.focus();}
 function sendWorldSnapshot(conn){const list=blocks.map(b=>({x:b.userData.x,y:b.userData.y,z:b.userData.z,type:b.userData.type}));conn.send({type:'snapshotStart',count:list.length,chunks:[...generatedChunks],mode,saveMode:activeSaveMode,inventorySlots,crafted,selected});for(let i=0;i<list.length;i+=180)conn.send({type:'snapshotPart',blocks:list.slice(i,i+180)});conn.send({type:'snapshotEnd'});}
-function setupMultiplayerConnection(conn,sendSnapshot=false){if(multiplayerConnections.some(c=>c.peer===conn.peer))return;multiplayerConnections.push(conn);renderFriendList();conn.on('open',()=>{multiplayerActive=true;setMultiStatus('Verbunden mit '+conn.peer+' ✓');renderFriendList();if(sendSnapshot)sendWorldSnapshot(conn);});conn.on('data',data=>{if(!data||typeof data!=='object')return;
+function setupMultiplayerConnection(conn,sendSnapshot=false){if(multiplayerConnections.some(c=>c.peer===conn.peer))return;multiplayerConnections.push(conn);renderFriendList();renderPlayersMenu();conn.on('open',()=>{multiplayerActive=true;setMultiStatus('Verbunden mit '+conn.peer+' ✓');renderFriendList();renderPlayersMenu();if(sendSnapshot)sendWorldSnapshot(conn);});conn.on('data',data=>{if(!data||typeof data!=='object')return;
  if(data.type==='chat'){if(typeof data.message==='string'){const msg=data.message.trim().slice(0,180);if(msg){addChatLine(String(conn.peer||'Freund').slice(0,18),msg);if(hostingRoom)multiplayerConnections.forEach(other=>{if(other!==conn&&other.open)try{other.send({type:'chat',message:msg});}catch(e){}});}}}
  else if(data.type==='position'){const a=makeRemoteAvatar(conn.peer);const px=Number(data.x),pz=Number(data.z),pf=Number(data.feet),pa=Number(data.angle);if(Number.isFinite(px)&&Number.isFinite(pz)&&Number.isFinite(pf)){a.position.set(px,pf,pz);a.rotation.y=Number.isFinite(pa)?pa:0;}}
  else if(data.type==='snapshotStart'){applyingNetworkBlocks=true;clearWorld();networkSnapshotChunks=data.chunks||[];if(['build','walk','survival'].includes(data.mode))setMode(data.mode);if(data.saveMode==='survival'||data.saveMode==='creative')activeSaveMode=data.saveMode;if(Array.isArray(data.inventorySlots))inventorySlots=data.inventorySlots.slice(0,36);if(data.crafted&&typeof data.crafted==='object')crafted=data.crafted;if(typeof data.selected==='string')selected=data.selected;renderInventory();}
@@ -343,9 +358,12 @@ function setupMultiplayerConnection(conn,sendSnapshot=false){if(multiplayerConne
  else if(data.type==='snapshotEnd'){generatedChunks=new Set(networkSnapshotChunks||[]);applyingNetworkBlocks=false;ensureChunks();avatar.position.set(player.x,player.feet,player.z);setMultiStatus('Du bist jetzt in der Welt deines Freundes!');}
  else if(data.type==='blockAdd'){applyingNetworkBlocks=true;addNetworkBlock(data.x,data.y,data.z,data.blockType);applyingNetworkBlocks=false;}
  else if(data.type==='blockRemove'){applyingNetworkBlocks=true;const b=blocks.find(v=>v.userData.x===data.x&&v.userData.y===data.y&&v.userData.z===data.z);if(b){scene.remove(b);blocks=blocks.filter(v=>v!==b);}applyingNetworkBlocks=false;}
- });conn.on('close',()=>{multiplayerConnections=multiplayerConnections.filter(c=>c!==conn);removeRemoteAvatar(conn.peer);renderFriendList();if(!multiplayerConnections.length){multiplayerActive=false;setMultiStatus('Verbindung getrennt.');}});conn.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Bitte erneut versuchen.')));}
+ });conn.on('close',()=>{multiplayerConnections=multiplayerConnections.filter(c=>c!==conn);removeRemoteAvatar(conn.peer);renderFriendList();renderPlayersMenu();if(!multiplayerConnections.length){multiplayerActive=false;setMultiStatus('Verbindung getrennt.');}});conn.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Bitte erneut versuchen.')));}
 function startHosting(){hostingRoom=true;if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,id)=>removeRemoteAvatar(id));multiplayerActive=false;setMultiStatus('Erstelle Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',id=>{document.getElementById('roomArea').style.display='block';document.getElementById('roomCode').textContent=id;setMultiStatus('Raum bereit! Teile den Code mit deinem Freund.');});multiplayerPeer.on('connection',conn=>setupMultiplayerConnection(conn,true));multiplayerPeer.on('error',e=>setMultiStatus('Peer-Fehler: '+(e.message||'Verbindung nicht möglich.')));}
 function joinRoom(){hostingRoom=false;const id=document.getElementById('joinCode').value.trim();if(!id){setMultiStatus('Bitte gib zuerst einen Raumcode ein.');return;}if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,key)=>removeRemoteAvatar(key));multiplayerActive=false;setMultiStatus('Verbinde mit Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',()=>{const conn=multiplayerPeer.connect(id,{reliable:true});setupMultiplayerConnection(conn,false);});multiplayerPeer.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Code prüfen.')));}
+document.getElementById('playersOpen').onclick=()=>{renderPlayersMenu();document.getElementById('playersMenu').classList.add('visible');};
+document.getElementById('playersClose').onclick=()=>document.getElementById('playersMenu').classList.remove('visible');
+document.getElementById('playersMenu').addEventListener('click',e=>{if(e.target.id==='playersMenu')document.getElementById('playersMenu').classList.remove('visible');});
 document.getElementById('multiOpen').onclick=()=>document.getElementById('multiMenu').classList.add('visible');
 document.getElementById('closeMulti').onclick=()=>document.getElementById('multiMenu').classList.remove('visible');
 document.getElementById('chatSend').onclick=sendChatMessage;document.getElementById('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChatMessage();});
