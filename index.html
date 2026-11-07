@@ -52,6 +52,26 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 #survivalBtn{background:linear-gradient(145deg,#637c49,#34472c)}#inventoryToggle{background:linear-gradient(145deg,#557b59,#2d4d37)}#craftToggle{background:linear-gradient(145deg,#8a7145,#574329)}
 #hotbar{background:#171d18ed;border:2px solid #aaa88d;border-radius:7px;box-shadow:0 5px 18px #000b}.hot-slot{background:linear-gradient(145deg,#454b3d,#252b23);border:2px solid #8e927c}.hot-slot.selected{border-color:#e8d58b;background:#62684d}.invslot{background:linear-gradient(145deg,#454b3d,#252b23);border-color:#777e69}
 #miniMap{border-color:#b3b69a;background:#172019}#joystick,#dpad button,#jumpBtn{background:#283329e8;border-color:#aab293}#stickKnob{background:linear-gradient(145deg,#c6c8ad,#66765a);border-color:#e2e2ca}#actionButtons button{background:#293329ed;border-color:#aab293}#bottom{background:#20271fef}
+
+/* Spielmodus-Auswahl */
+#modeSelect{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at 50% 20%,#414b37ee,#111711f5 72%);overflow:auto}
+#modeSelect.visible{display:flex}
+.mode-wrap{width:min(980px,100%);text-align:center}
+.mode-kicker{color:#c0c69e;font-size:11px;letter-spacing:5px;text-transform:uppercase}
+.mode-title{font:900 clamp(30px,6vw,54px)/1.05 Georgia,serif;letter-spacing:4px;color:#eee9d8;text-shadow:0 4px 16px #000;margin:12px 0 8px}
+.mode-intro{color:#c4c7b6;margin:0 0 26px;font-size:14px}
+.mode-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;text-align:left}
+.mode-card{position:relative;min-height:310px;overflow:hidden;border:1px solid #a5a88a;border-radius:13px;background:#20271f;box-shadow:0 14px 35px #0009;cursor:pointer;transition:transform .2s,border-color .2s}
+.mode-card:hover{transform:translateY(-5px);border-color:#e5d9a4}
+.mode-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.78;transition:transform .4s}
+.mode-card:hover img{transform:scale(1.045)}
+.mode-card:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#080d0800 10%,#080d08b8 56%,#080d08f5 100%)}
+.mode-card-content{position:absolute;z-index:1;left:0;right:0;bottom:0;padding:22px}
+.mode-card h2{margin:0 0 8px;color:#f3efdf;font:900 27px Georgia,serif;letter-spacing:3px}
+.mode-card p{margin:0 0 17px;color:#e0e1d5;font-size:13px;line-height:1.5;max-width:390px}
+.mode-enter{display:inline-block;padding:10px 17px;border:1px solid #c1c39d;border-radius:5px;background:#333d2be8;color:#fff;font-weight:800;letter-spacing:1px;font-size:12px}
+.mode-card.survival .mode-enter{background:#4a5935e8}.mode-card.creative .mode-enter{background:#4b5848e8}
+@media(max-width:650px){#modeSelect{padding:16px;align-items:flex-start}.mode-intro{margin-bottom:16px}.mode-cards{grid-template-columns:1fr;gap:12px}.mode-card{min-height:220px}.mode-card-content{padding:16px}.mode-card h2{font-size:23px}}
 </style>
 </head>
 <body>
@@ -62,6 +82,24 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   <div class="loadtag">✦ ERKUNDE · BAUE · ÜBERLEBE ✦</div>
   <div class="track"><div id="progress"></div></div>
   <div id="loadtext">Welt wird vorbereitet … 0%</div>
+</div>
+
+<div id="modeSelect" aria-label="Spielmodus auswählen">
+ <div class="mode-wrap">
+  <div class="mode-kicker">LIFEVERSE · DEINE WELT. DEINE REGELN.</div>
+  <h1 class="mode-title">WÄHLE DEINEN MODUS</h1>
+  <p class="mode-intro">Wie möchtest du deine Welt erleben?</p>
+  <div class="mode-cards">
+   <article class="mode-card survival" id="chooseSurvival" role="button" tabindex="0" aria-label="Survival starten">
+    <img src="https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1100&q=85" alt="Dichter, geheimnisvoller grüner Wald">
+    <div class="mode-card-content"><h2>⚔️ SURVIVAL</h2><p>Sammle Rohstoffe, baue Werkzeuge und errichte dein Zuhause. Erkunde die Welt und stelle dich deinen eigenen Herausforderungen – jeder Block zählt.</p><span class="mode-enter">SURVIVAL SPIELEN →</span></div>
+   </article>
+   <article class="mode-card creative" id="chooseCreative" role="button" tabindex="0" aria-label="Creative starten">
+    <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1100&q=85" alt="Weite Landschaft mit Bergen und offenem Himmel">
+    <div class="mode-card-content"><h2>🧱 CREATIVE</h2><p>Deine Fantasie kennt keine Grenzen. Baue frei mit den verfügbaren Blöcken, gestalte riesige Bauwerke und erschaffe deine ganz eigene Welt.</p><span class="mode-enter">CREATIVE SPIELEN →</span></div>
+   </article>
+  </div>
+ </div>
 </div>
 <div id="game"></div>
 <header>
@@ -200,6 +238,9 @@ document.getElementById('dayBtn').onclick=()=>{night=!night;scene.background=new
 const keys={};addEventListener('keydown',e=>{if(e.code==='Space'){jumpQueued=true;e.preventDefault();}keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#dpad button,#jumpBtn').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();if(k==='space')jumpQueued=true;else keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>{if(k!=='space')keys[k]=false;};b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});const joystick=document.getElementById('joystick'),stickKnob=document.getElementById('stickKnob');let joyPointer=null;function resetJoystick(){joyPointer=null;keys.w=keys.a=keys.s=keys.d=false;stickKnob.style.transform='translate(0px,0px)'}function moveJoystick(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max= Math.min(r.width,r.height)*.34,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max;}stickKnob.style.transform='translate('+dx+'px,'+dy+'px)';const nx=dx/max,ny=dy/max;keys.w=ny<-.28;keys.s=ny>.28;keys.a=nx<-.28;keys.d=nx>.28;}joystick.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;try{joystick.setPointerCapture(e.pointerId)}catch(_){}moveJoystick(e)});joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoystick(e)}});joystick.addEventListener('pointerup',e=>{if(e.pointerId===joyPointer)resetJoystick()});joystick.addEventListener('pointercancel',resetJoystick);
 let previousFrame=performance.now(),lastMiniMapDraw=0,lastOutlineUpdate=0;function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(mode==='walk'||mode==='survival'){updatePlayer(dt);ensureChunks();updateFollowCamera(true);}if(mode==='survival'&&now-lastMiniMapDraw>350){drawMiniMap();lastMiniMapDraw=now;}if(now-lastOutlineUpdate>100){updateBlockOutline();lastOutlineUpdate=now;}renderer.render(scene,camera)}animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.textContent='Fertig! Viel Spaß beim Bauen.';setTimeout(()=>document.getElementById('loader').classList.add('hide'),450)},1500);
+function enterGame(selectedMode){document.getElementById('modeSelect').classList.remove('visible');if(selectedMode==='survival'){firstPerson=false;setMode('survival');setSurvivalAction('mine');}else{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Creative · Frei bauen und gestalten';}}
+function bindModeCard(id,selectedMode){const el=document.getElementById(id);el.addEventListener('click',()=>enterGame(selectedMode));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();enterGame(selectedMode);}});}
+bindModeCard('chooseSurvival','survival');bindModeCard('chooseCreative','creative');
+setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.textContent='Fertig! Wähle deinen Spielmodus.';setTimeout(()=>{document.getElementById('loader').classList.add('hide');document.getElementById('modeSelect').classList.add('visible');},450)},1500);
 </script>
 </body></html>
