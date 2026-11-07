@@ -85,6 +85,14 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 .pause-actions .pause-primary{background:linear-gradient(145deg,#667a4d,#35472f);border-color:#c0c99d}
 .pause-actions .pause-exit{background:linear-gradient(145deg,#704b3c,#422b25);border-color:#b78b75}
 .logo{cursor:pointer}.logo:focus-visible{outline:2px solid #e6d99f;outline-offset:4px}
+#multiMenu{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;padding:18px;background:#080c09c9;backdrop-filter:blur(7px)}
+#multiMenu.visible{display:flex}.multi-card{width:min(430px,94vw);padding:22px;background:linear-gradient(145deg,#3b4435f7,#151b15f9);border:1px solid #a9ad8c;border-radius:13px;box-shadow:0 18px 60px #000c}
+.multi-card h2{font:900 23px Georgia,serif;letter-spacing:3px;margin:0 0 8px;color:#eee9d8}.multi-card p{font-size:13px;line-height:1.5;color:#c9cebd}
+.multi-card input{width:100%;padding:12px;margin:8px 0;background:#101710;color:white;border:1px solid #a9ad8c;border-radius:8px;font-size:16px}
+.multi-actions{display:grid;gap:8px;margin-top:12px}.multi-actions button{width:100%;padding:12px}
+#roomCode{padding:12px;background:#101710;border:1px dashed #a9ad8c;border-radius:8px;font-size:18px;font-weight:900;letter-spacing:2px;text-align:center;overflow-wrap:anywhere}
+#multiStatus{font-size:12px;color:#c5d29e;min-height:18px;margin-top:10px}
+@media(max-width:600px){#multiMenu{align-items:flex-start;overflow:auto}.multi-card{margin:auto 0}}
 </style>
 </head>
 <body>
@@ -129,10 +137,24 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   </div>
  </div>
 </div>
+<div id="multiMenu" role="dialog" aria-modal="true" aria-label="Multiplayer">
+ <div class="multi-card">
+  <h2>👥 LIFEVERSE MULTIPLAYER</h2>
+  <p>Erstelle einen Raum und teile den Code mit deinem Freund. Oder gib den Code deines Freundes ein, um beizutreten.</p>
+  <div class="multi-actions">
+   <button id="hostRoom">🌍 RAUM ERSTELLEN</button>
+   <div id="roomArea" style="display:none"><div style="font-size:11px;color:#c9cebd;margin:8px 0">DEIN RAUMCODE</div><div id="roomCode">—</div><button id="copyRoom" style="width:100%;margin-top:7px">📋 CODE KOPIEREN</button></div>
+   <input id="joinCode" autocomplete="off" autocapitalize="none" placeholder="Raumcode eingeben">
+   <button id="joinRoom">🔗 RAUM BEITRETEN</button>
+   <button id="closeMulti">✖ SCHLIESSEN</button>
+  </div>
+  <div id="multiStatus">Noch nicht verbunden.</div>
+ </div>
+</div>
 <div id="game"></div>
 <header>
  <div class="logo" id="pauseLogo" role="button" tabindex="0" aria-label="Pause-Menü öffnen"><span class="mini-mark">L</span> LIFEVERSE <small>DEINE WELT. DEINE REGELN.</small></div>
- <div class="panel"><button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button> <button id="survivalBtn">🪓 Survival</button><div id="status">Baumodus · Gras ausgewählt</div></div>
+ <div class="panel"><button id="multiOpen">👥 Multiplayer</button> <button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button> <button id="survivalBtn">🪓 Survival</button><div id="status">Baumodus · Gras ausgewählt</div></div>
 </header>
 <div id="toolbar">
  <button id="saveBtn">💾 Speichern</button>
@@ -166,6 +188,7 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 </div>
 <div id="hint" class="panel">Maus ziehen: Welt drehen · Mausrad: zoomen<br>Baumodus: auf einen Block tippen, um darauf zu bauen.<br>Erkunden: WASD/Pfeile, Leertaste zum Springen. Blöcke bleiben stehen; die Figur fällt mit Schwerkraft.</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const progress=document.getElementById('progress'),loadtext=document.getElementById('loadtext');
 let pct=0;const loaderTimer=setInterval(()=>{pct=Math.min(95,pct+Math.random()*13);progress.style.width=pct+'%';loadtext.textContent='Welt wird vorbereitet … '+Math.floor(pct)+'%';},130);
@@ -195,6 +218,8 @@ const legL=new THREE.Mesh(legGeo,pantsMat),legR=new THREE.Mesh(legGeo,pantsMat);
 const armGeo=new THREE.BoxGeometry(.2,.62,.22);const armL=new THREE.Mesh(armGeo,skinMat),armR=new THREE.Mesh(armGeo,skinMat);armL.position.set(-.42,1.08,0);armR.position.set(.42,1.08,0);avatar.add(armL,armR);armL.castShadow=armR.castShadow=true;
 scene.add(avatar);
 function addBlock(x,y,z,type){const mesh=new THREE.Mesh(cubeGeo,blockMaterials[type]||blockMaterials.grass);mesh.position.set(x,y,z);mesh.castShadow=false;mesh.receiveShadow=false;mesh.userData={x,y,z,type};scene.add(mesh);blocks.push(mesh);return mesh}
+function removeBlockMesh(mesh){if(!mesh)return;scene.remove(mesh);blocks=blocks.filter(b=>b!==mesh);if(multiplayerActive&&!applyingNetworkBlocks)broadcastNet({type:'blockRemove',x:mesh.userData.x,y:mesh.userData.y,z:mesh.userData.z});}
+function addNetworkBlock(x,y,z,type){if(blocks.some(b=>b.userData.x===x&&b.userData.y===y&&b.userData.z===z))return;if(['grass','dirt','stone','wood','leaves','water','workbench'].includes(type))addBlock(x,y,z,type);}
 function clearWorld(){blocks.forEach(b=>scene.remove(b));blocks=[];generatedChunks.clear()}
 function riverCenterX(z){return 9+Math.sin(z*.075)*7+Math.sin(z*.027)*4;}
 function riverCenterZ(x){return -19+Math.sin(x*.065)*5+Math.sin(x*.021)*3;}
@@ -225,11 +250,11 @@ avatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=angle+Math.
 }
 updateCamera();
 function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;
-if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}
+if(mode==='build'){if(eraseMode){removeBlockMesh(h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,selected);broadcastNet({type:'blockAdd',x,y,z,blockType:selected});}}}
 else if(mode==='survival'){
  const distance=h.point.distanceTo(new THREE.Vector3(player.x,player.feet+1,player.z));if(distance>5.2)return;
- if(survivalAction==='mine'){const type=h.object.userData.type;if(type==='workbench'){crafted.workbench=(crafted.workbench||0)+1;workbenchPlaced=false;}else inventory[type]=(inventory[type]||0)+1;scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object);renderInventory();}
- else {const type=selected;const available=type==='workbench'?(crafted.workbench||0):(inventory[type]||0);if(available>0){const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);if(type==='workbench'){crafted.workbench--;workbenchPlaced=true;}else inventory[type]--;renderInventory();}}}
+ if(survivalAction==='mine'){const type=h.object.userData.type;if(type==='workbench'){crafted.workbench=(crafted.workbench||0)+1;workbenchPlaced=false;}else inventory[type]=(inventory[type]||0)+1;removeBlockMesh(h.object);renderInventory();}
+ else {const type=selected;const available=type==='workbench'?(crafted.workbench||0):(inventory[type]||0);if(available>0){const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);broadcastNet({type:'blockAdd',x,y,z,blockType:type});if(type==='workbench'){crafted.workbench--;workbenchPlaced=true;}else inventory[type]--;renderInventory();}}}
 }}}
 let downX=0,downY=0, movedPointer=false;
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;movedPointer=false;downX=lastX=e.clientX;downY=lastY=e.clientY;try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}});
@@ -254,7 +279,7 @@ function renderCrafting(){const el=document.getElementById('recipes');if(!el)ret
 function isNearPlacedWorkbench(){return blocks.some(b=>b.userData.type==='workbench'&&b.position.distanceTo(new THREE.Vector3(player.x,player.feet+.5,player.z))<=5.2);}
 function useTargetedWorkbench(){if(mode!=='survival'){document.getElementById('status').textContent='Wechsle zuerst in den Survival-Modus.';return;}const panel=document.getElementById('craftPanel');panel.classList.add('visible');document.getElementById('craftToggle').textContent='✖ Crafting schließen';document.getElementById('status').textContent=isNearPlacedWorkbench()?'Werkbank in Reichweite · Du kannst craften.':'Crafting geöffnet · Für die Steinspitzhacke brauchst du eine platzierte Werkbank in deiner Nähe.';renderCrafting();}
 function craftRecipe(recipe){if(!canCraft(recipe))return;Object.entries(recipe.need).forEach(([k,v])=>removeItem(k,v));Object.entries(recipe.out).forEach(([k,v])=>addItem(k,v));renderInventory();}
-function interactAtCenter(action){const center=new THREE.Vector2(0,0);raycaster.setFromCamera(center,camera);const hits=raycaster.intersectObjects(blocks);if(!hits.length)return;const h=hits[0];if(h.point.distanceTo(new THREE.Vector3(player.x,player.feet+1,player.z))>5.2)return;const p=h.object.position,n=h.face.normal;if(action==='mine'){const type=h.object.userData.type;if(!addItem(type,1)){document.getElementById('status').textContent='Dein Inventar ist voll!';return;}scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object);renderInventory();}else{const slot=selectedSlot>=0?inventorySlots[selectedSlot]:null;if(!slot){document.getElementById('status').textContent='Wähle zuerst einen Gegenstand in deiner Hotbar.';return;}const type=slot.type;if(!['grass','dirt','stone','wood','leaves','water','workbench'].includes(type))return;const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);removeItem(type,1);renderInventory();}}}
+function interactAtCenter(action){const center=new THREE.Vector2(0,0);raycaster.setFromCamera(center,camera);const hits=raycaster.intersectObjects(blocks);if(!hits.length)return;const h=hits[0];if(h.point.distanceTo(new THREE.Vector3(player.x,player.feet+1,player.z))>5.2)return;const p=h.object.position,n=h.face.normal;if(action==='mine'){const type=h.object.userData.type;if(!addItem(type,1)){document.getElementById('status').textContent='Dein Inventar ist voll!';return;}removeBlockMesh(h.object);renderInventory();}else{const slot=selectedSlot>=0?inventorySlots[selectedSlot]:null;if(!slot){document.getElementById('status').textContent='Wähle zuerst einen Gegenstand in deiner Hotbar.';return;}const type=slot.type;if(!['grass','dirt','stone','wood','leaves','water','workbench'].includes(type))return;const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);broadcastNet({type:'blockAdd',x,y,z,blockType:type});removeItem(type,1);renderInventory();}}}
 function setSurvivalAction(action){survivalAction=action;document.getElementById('mineAction').classList.toggle('active',action==='mine');document.getElementById('placeAction').classList.toggle('active',action==='place');}
 function drawMiniMap(){const c=document.getElementById('miniMap'),ctx=c.getContext('2d');ctx.clearRect(0,0,200,200);ctx.fillStyle='#1d3141';ctx.fillRect(0,0,200,200);const scale=5;blocks.forEach(b=>{if(b.position.y>=terrainHeight(b.userData.x,b.userData.z)-.1){ctx.fillStyle=({grass:'#58a94f',dirt:'#8b5735',stone:'#89939c',wood:'#9a6738',leaves:'#267b43',water:'#2699d6'}[b.userData.type]||'#fff');ctx.fillRect(100+b.position.x*scale-2,100+b.position.z*scale-2,4,4);}});ctx.fillStyle='#ffdf5d';ctx.beginPath();ctx.arc(100+player.x*scale,100+player.z*scale,4,0,Math.PI*2);ctx.fill();}
 function setMode(m){const previousMode=mode;mode=m;if(m==='build')firstPerson=false;if((m==='walk'||m==='survival')&&previousMode==='build'){radius=13;angle=.7;tilt=.72;updateFollowCamera(false);}if(m==='build'&&previousMode!=='build'){radius=34;updateCamera();}document.getElementById('buildBtn').classList.toggle('active',m==='build');document.getElementById('walkBtn').classList.toggle('active',m==='walk');document.getElementById('survivalBtn').classList.toggle('active',m==='survival');document.getElementById('touchControls').classList.toggle('visible',m!=='build');document.getElementById('actionButtons').classList.toggle('visible',m==='survival');document.getElementById('hotbar').classList.toggle('visible',m==='survival');document.getElementById('survivalHud').classList.toggle('visible',m==='survival');document.getElementById('miniMap').classList.toggle('visible',m==='survival');document.getElementById('miniMap').style.display=m==='survival'?'block':'none';if(m==='survival')drawMiniMap();document.getElementById('status').textContent=m==='build'?'Baumodus · '+selected+' ausgewählt':m==='survival'?'Survival · Sammeln und platzieren':'Erkundungsmodus · Richtungstasten oder WASD';if(m==='survival')renderInventory();document.getElementById('craftPanel').classList.remove('visible');document.getElementById('craftToggle').textContent='🛠️ Crafting öffnen';}
@@ -271,6 +296,31 @@ document.getElementById('dayBtn').onclick=()=>{night=!night;scene.background=new
 const keys={};addEventListener('keydown',e=>{if(e.code==='Escape'){e.preventDefault();if(document.getElementById('modeSelect').classList.contains('visible'))return;togglePause();return;}if(gamePaused)return;if(e.code==='Space'){jumpQueued=true;e.preventDefault();}keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#dpad button,#jumpBtn').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();if(k==='space')jumpQueued=true;else keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>{if(k!=='space')keys[k]=false;};b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});const joystick=document.getElementById('joystick'),stickKnob=document.getElementById('stickKnob');let joyPointer=null;function resetJoystick(){joyPointer=null;keys.w=keys.a=keys.s=keys.d=false;stickKnob.style.transform='translate(0px,0px)'}function moveJoystick(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max= Math.min(r.width,r.height)*.34,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max;}stickKnob.style.transform='translate('+dx+'px,'+dy+'px)';const nx=dx/max,ny=dy/max;keys.w=ny<-.28;keys.s=ny>.28;keys.a=nx<-.28;keys.d=nx>.28;}joystick.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;try{joystick.setPointerCapture(e.pointerId)}catch(_){}moveJoystick(e)});joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoystick(e)}});joystick.addEventListener('pointerup',e=>{if(e.pointerId===joyPointer)resetJoystick()});joystick.addEventListener('pointercancel',resetJoystick);
 let previousFrame=performance.now(),lastMiniMapDraw=0,lastOutlineUpdate=0;function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(!gamePaused&&(mode==='walk'||mode==='survival')){updatePlayer(dt);ensureChunks();updateFollowCamera(true);}if(!gamePaused&&mode==='survival'&&now-lastMiniMapDraw>350){drawMiniMap();lastMiniMapDraw=now;}if(now-lastOutlineUpdate>100){updateBlockOutline();lastOutlineUpdate=now;}renderer.render(scene,camera)}animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+// Peer-to-Peer-Multiplayer über PeerJS
+let multiplayerPeer=null,multiplayerConnections=[],remoteAvatars=new Map(),multiplayerActive=false,applyingNetworkBlocks=false,networkSnapshotChunks=[];
+const multiStatus=document.getElementById('multiStatus');
+function setMultiStatus(message){if(multiStatus)multiStatus.textContent=message;}
+function makeRemoteAvatar(id){if(remoteAvatars.has(id))return remoteAvatars.get(id);const remote=avatar.clone(true);remote.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.set(0xe3a64b);}});remote.position.set(0,0,0);scene.add(remote);remoteAvatars.set(id,remote);return remote;}
+function removeRemoteAvatar(id){const a=remoteAvatars.get(id);if(a){scene.remove(a);remoteAvatars.delete(id);}}
+function broadcastNet(data){if(!multiplayerActive)return;multiplayerConnections.forEach(c=>{if(c.open)try{c.send(data)}catch(e){console.warn('Multiplayer send failed',e)}});}
+function sendWorldSnapshot(conn){const list=blocks.map(b=>({x:b.userData.x,y:b.userData.y,z:b.userData.z,type:b.userData.type}));conn.send({type:'snapshotStart',count:list.length,chunks:[...generatedChunks]});for(let i=0;i<list.length;i+=180)conn.send({type:'snapshotPart',blocks:list.slice(i,i+180)});conn.send({type:'snapshotEnd'});}
+function setupMultiplayerConnection(conn){if(multiplayerConnections.some(c=>c.peer===conn.peer))return;multiplayerConnections.push(conn);conn.on('open',()=>{multiplayerActive=true;setMultiStatus('Verbunden mit '+conn.peer+' ✓');sendWorldSnapshot(conn);});conn.on('data',data=>{if(!data||typeof data!=='object')return;
+ if(data.type==='position'){const a=makeRemoteAvatar(conn.peer);a.position.set(Number(data.x)||0,Number(data.feet)||0,Number(data.z)||0);a.rotation.y=Number(data.angle)||0;}
+ else if(data.type==='snapshotStart'){applyingNetworkBlocks=true;clearWorld();networkSnapshotChunks=data.chunks||[];}
+ else if(data.type==='snapshotPart'&&Array.isArray(data.blocks)){data.blocks.forEach(b=>addNetworkBlock(b.x,b.y,b.z,b.type));}
+ else if(data.type==='snapshotEnd'){generatedChunks=new Set(networkSnapshotChunks||[]);applyingNetworkBlocks=false;ensureChunks();setMultiStatus('Welt synchronisiert. Viel Spaß zusammen!');}
+ else if(data.type==='blockAdd'){applyingNetworkBlocks=true;addNetworkBlock(data.x,data.y,data.z,data.blockType);applyingNetworkBlocks=false;}
+ else if(data.type==='blockRemove'){applyingNetworkBlocks=true;const b=blocks.find(v=>v.userData.x===data.x&&v.userData.y===data.y&&v.userData.z===data.z);if(b){scene.remove(b);blocks=blocks.filter(v=>v!==b);}applyingNetworkBlocks=false;}
+ });conn.on('close',()=>{multiplayerConnections=multiplayerConnections.filter(c=>c!==conn);removeRemoteAvatar(conn.peer);if(!multiplayerConnections.length){multiplayerActive=false;setMultiStatus('Verbindung getrennt.');}});conn.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Bitte erneut versuchen.')));}
+function startHosting(){if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,id)=>removeRemoteAvatar(id));multiplayerActive=false;setMultiStatus('Erstelle Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',id=>{document.getElementById('roomArea').style.display='block';document.getElementById('roomCode').textContent=id;setMultiStatus('Raum bereit! Teile den Code mit deinem Freund.');});multiplayerPeer.on('connection',setupMultiplayerConnection);multiplayerPeer.on('error',e=>setMultiStatus('Peer-Fehler: '+(e.message||'Verbindung nicht möglich.')));}
+function joinRoom(){const id=document.getElementById('joinCode').value.trim();if(!id){setMultiStatus('Bitte gib zuerst einen Raumcode ein.');return;}if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,key)=>removeRemoteAvatar(key));multiplayerActive=false;setMultiStatus('Verbinde mit Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',()=>{const conn=multiplayerPeer.connect(id,{reliable:true});setupMultiplayerConnection(conn);});multiplayerPeer.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Code prüfen.')));}
+document.getElementById('multiOpen').onclick=()=>document.getElementById('multiMenu').classList.add('visible');
+document.getElementById('closeMulti').onclick=()=>document.getElementById('multiMenu').classList.remove('visible');
+document.getElementById('hostRoom').onclick=startHosting;
+document.getElementById('joinRoom').onclick=joinRoom;
+document.getElementById('copyRoom').onclick=async()=>{const id=document.getElementById('roomCode').textContent;try{await navigator.clipboard.writeText(id);setMultiStatus('Raumcode kopiert!');}catch(e){setMultiStatus('Bitte halte den Raumcode gedrückt und kopiere ihn.');}};
+setInterval(()=>{if(multiplayerActive)broadcastNet({type:'position',x:player.x,z:player.z,feet:player.feet,angle:angle});},100);
+addEventListener('beforeunload',()=>{if(multiplayerPeer)multiplayerPeer.destroy();});
 function togglePause(force){if(!activeSaveMode)return;const next=typeof force==='boolean'?force:!gamePaused;gamePaused=next;document.getElementById('pauseMenu').classList.toggle('visible',gamePaused);if(gamePaused){saveCurrentWorld(false);Object.keys(keys).forEach(k=>keys[k]=false);} }
 function enterGame(selectedMode){gamePaused=false;document.getElementById('pauseMenu').classList.remove('visible');activeSaveMode=selectedMode;const hadSave=loadModeWorld(selectedMode);document.getElementById('modeSelect').classList.remove('visible');if(selectedMode==='survival'){firstPerson=false;setMode('survival');setSurvivalAction('mine');}else{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Creative · Frei bauen und gestalten';}if(!hadSave)saveCurrentWorld(false);}
 function bindModeCard(id,selectedMode){const el=document.getElementById(id);el.addEventListener('click',()=>enterGame(selectedMode));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();enterGame(selectedMode);}});}
