@@ -38,11 +38,25 @@ button:hover{filter:brightness(1.15)}
 #survivalActions button{flex:1;font-size:11px;padding:7px 3px}
 @media(max-width:600px){#inventoryGrid{grid-template-columns:repeat(6,minmax(0,1fr))}#inventoryPanel{max-height:72vh}#hotbar{gap:2px;padding:4px;bottom:8px}.hot-slot{width:38px;height:42px}#survivalHud{top:auto;bottom:75px;right:8px;width:158px}#miniMap{top:142px;bottom:auto;right:8px;width:120px;height:120px}}
 
+
+/* LIFEVERSE – steiniger Survival-Look mit eigenem L-Emblem */
+#loader{background:radial-gradient(ellipse at 50% 38%,#3b463b 0%,#202820 42%,#0b100e 100%)}
+.load-emblem{width:clamp(100px,19vw,142px);height:clamp(100px,19vw,142px);filter:drop-shadow(0 8px 12px #000b) drop-shadow(0 0 18px #8d9b70aa)}
+.loadlogo{font-family:Georgia,serif;letter-spacing:7px;color:#e7e4d8;text-shadow:0 3px 0 #34362f,0 8px 18px #000}
+.loadlogo span{color:#c5c2b4}.loadsub{color:#d4d0bf;letter-spacing:4px;text-shadow:0 2px 5px #000}.loadtag{color:#b5c69a;letter-spacing:3px}
+.track{background:#080d0bdc;border:1px solid #a5ad8b88;box-shadow:0 0 18px #0009}#progress{background:linear-gradient(90deg,#397db5,#4ca86a,#bd453d);box-shadow:0 0 12px #91a47a}
+.logo,.panel,#survivalHud,#inventoryPanel,#craftPanel{background:linear-gradient(145deg,#343a31ee,#171c18f2);border:1px solid #9a9b7c88;box-shadow:0 5px 18px #0008}
+.logo{color:#e6e2d3;text-shadow:0 2px 4px #000;display:flex;align-items:center;gap:8px}.logo small{color:#b9bea9}
+.mini-mark{display:inline-flex;align-items:center;justify-content:center;width:28px;height:32px;background:linear-gradient(145deg,#d7d3c3,#77796d);clip-path:polygon(0 0,42% 0,42% 65%,100% 65%,100% 100%,0 100%);color:#20251f;font-family:Georgia,serif;font-size:23px;font-weight:1000;text-shadow:none;padding-right:4px}
+button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da58a88;color:#f0eedf;box-shadow:inset 0 1px #ffffff20,0 3px 8px #0005}button.active{background:linear-gradient(145deg,#557b59,#2d4d37);box-shadow:0 0 0 2px #9fc18c66}
+#survivalBtn{background:linear-gradient(145deg,#637c49,#34472c)}#inventoryToggle{background:linear-gradient(145deg,#557b59,#2d4d37)}#craftToggle{background:linear-gradient(145deg,#8a7145,#574329)}
+#hotbar{background:#171d18ed;border:2px solid #aaa88d;border-radius:7px;box-shadow:0 5px 18px #000b}.hot-slot{background:linear-gradient(145deg,#454b3d,#252b23);border:2px solid #8e927c}.hot-slot.selected{border-color:#e8d58b;background:#62684d}.invslot{background:linear-gradient(145deg,#454b3d,#252b23);border-color:#777e69}
+#miniMap{border-color:#b3b69a;background:#172019}#joystick,#dpad button,#jumpBtn{background:#283329e8;border-color:#aab293}#stickKnob{background:linear-gradient(145deg,#c6c8ad,#66765a);border-color:#e2e2ca}#actionButtons button{background:#293329ed;border-color:#aab293}#bottom{background:#20271fef}
 </style>
 </head>
 <body>
 <div id="loader">
-  <div class="load-emblem" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M50 5 91 28 91 73 50 96 9 73 9 28Z" fill="none" stroke="#a9efff" stroke-width="4"/><path d="M50 5 50 50 9 28M50 50 91 28M50 50 50 96M9 73 50 50 91 73" fill="none" stroke="#58cfff" stroke-width="3"/><path d="m50 18 28 16v32L50 82 22 66V34Z" fill="#38bdf8" opacity=".18"/></svg></div>
+  <div class="load-emblem" aria-hidden="true"><svg viewBox="0 0 120 120"><defs><linearGradient id="stoneL" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f0eee4"/><stop offset=".48" stop-color="#aaa99c"/><stop offset="1" stop-color="#55584f"/></linearGradient></defs><path d="M22 10h25v73h54v25H22z" fill="url(#stoneL)" stroke="#34372f" stroke-width="3" stroke-linejoin="bevel"/><path d="m63 14 17 26-17 8-15-18z" fill="#36a9ff" stroke="#102c45" stroke-width="2"/><path d="m83 50 25 13-23 16-18-17z" fill="#50c878" stroke="#173c28" stroke-width="2"/><path d="m55 75 21 14-18 23-16-20z" fill="#e34b43" stroke="#4b1715" stroke-width="2"/></svg></div>
   <div class="loadlogo">LIFE<span>VERSE</span></div>
   <div class="loadsub">DEINE WELT. DEINE REGELN.</div>
   <div class="loadtag">✦ ERKUNDE · BAUE · ÜBERLEBE ✦</div>
@@ -51,7 +65,7 @@ button:hover{filter:brightness(1.15)}
 </div>
 <div id="game"></div>
 <header>
- <div class="logo">🌍 LIFEVERSE <small>DEINE WELT. DEINE REGELN.</small></div>
+ <div class="logo"><span class="mini-mark">L</span> LIFEVERSE <small>DEINE WELT. DEINE REGELN.</small></div>
  <div class="panel"><button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button> <button id="survivalBtn">🪓 Survival</button><div id="status">Baumodus · Gras ausgewählt</div></div>
 </header>
 <div id="toolbar">
