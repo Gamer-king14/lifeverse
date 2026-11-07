@@ -26,6 +26,19 @@ button:hover{filter:brightness(1.15)}
 #hint{position:fixed;right:12px;bottom:14px;max-width:260px;font-size:12px;line-height:1.4}
 #status{font-size:12px;color:#b9d3e6;margin-top:4px}
 #touchControls button[data-key="space"]{width:104px;font-size:12px}@media(max-width:600px){#toolbar{top:82px}#toolbar button{padding:9px;font-size:12px}.panel{padding:8px}#hint{display:none}header{font-size:13px}}
+
+#survivalBtn{background:#28543c}
+#survivalHud{position:fixed;right:12px;top:86px;z-index:4;width:190px;background:#111c2ddd;border:1px solid #ffffff35;border-radius:12px;padding:10px;display:none;backdrop-filter:blur(8px)}
+#survivalHud.visible{display:block}
+#inventory{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}
+.invslot{font-size:11px;padding:7px 3px;background:#263a53;border:1px solid #ffffff33}
+.invslot.selected{outline:2px solid #9beaff}
+#miniMap{position:fixed;right:12px;top:160px;width:150px;height:150px;border:2px solid #ffffff99;border-radius:10px;background:#101827dd;display:none}
+#miniMap.visible{display:block}
+#survivalActions{display:flex;gap:5px;margin-top:8px}
+#survivalActions button{flex:1;font-size:11px;padding:7px 3px}
+@media(max-width:600px){#survivalHud{top:auto;bottom:75px;right:8px;width:158px}#miniMap{top:130px;width:112px;height:112px}}
+
 </style>
 </head>
 <body>
@@ -38,7 +51,7 @@ button:hover{filter:brightness(1.15)}
 <div id="game"></div>
 <header>
  <div class="logo">🌍 LIFEVERSE <small>DEINE WELT. DEINE REGELN.</small></div>
- <div class="panel"><button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button><div id="status">Baumodus · Gras ausgewählt</div></div>
+ <div class="panel"><button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button> <button id="survivalBtn">🪓 Survival</button><div id="status">Baumodus · Gras ausgewählt</div></div>
 </header>
 <div id="toolbar">
  <button id="saveBtn">💾 Speichern</button>
@@ -47,6 +60,13 @@ button:hover{filter:brightness(1.15)}
  <button id="dayBtn">☀️ Tag / Nacht</button>
  <button id="eraseBtn">🧹 Blöcke entfernen</button>
 </div>
+<div id="survivalHud">
+ <strong>🎒 Inventar</strong>
+ <div id="inventory"></div>
+ <div id="survivalActions"><button id="mineAction" class="active">⛏️ Abbauen</button><button id="placeAction">🧱 Platzieren</button></div>
+ <div style="font-size:10px;color:#c7d7e5;margin-top:6px">Wähle einen Block und eine Aktion.</div>
+</div>
+<canvas id="miniMap" width="200" height="200"></canvas>
 <div id="touchControls" aria-label="Steuerung"><button data-key="w">▲</button><div><button data-key="a">◀</button><button data-key="s">▼</button><button data-key="d">▶</button></div><button data-key="space">SPRINGEN</button></div>
 <div id="bottom" class="panel">
  <span style="font-size:12px">BLOCK:</span>
@@ -70,7 +90,7 @@ const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(8,20,10);sun.c
 sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-35;sun.shadow.camera.right=35;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;sun.shadow.bias=-0.00015;
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x426f3c,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-2.55;ground.receiveShadow=true;scene.add(ground);
 const cubeGeo=new THREE.BoxGeometry(1,1,1),materials={grass:0x58a94f,dirt:0x8b5735,stone:0x89939c,wood:0x9a6738,leaves:0x267b43,water:0x2699d6};
-let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,player={x:0,z:0,feet:0.5,vy:0,onGround:true};
+let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,survivalAction='mine',inventory={grass:0,dirt:0,stone:0,wood:0,leaves:0,water:0},player={x:0,z:0,feet:0.5,vy:0,onGround:true};
 // Sichtbare Spielfigur: Füße liegen bei player.feet.
 const avatar=new THREE.Group();
 const skinMat=new THREE.MeshStandardMaterial({color:0xf0bd91,roughness:.82});
@@ -100,7 +120,12 @@ if(player.feet<=landing){player.feet=landing;player.vy=0;player.onGround=true}el
 avatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=Math.atan2(dx||0,dz||1);
 }
 updateCamera();
-function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}}}
+function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;
+if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}
+else if(mode==='survival'){
+ if(survivalAction==='mine'){const type=h.object.userData.type;inventory[type]=(inventory[type]||0)+1;scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object);renderInventory();}
+ else {const type=selected;if((inventory[type]||0)>0){const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);inventory[type]--;renderInventory();}}}
+}}}
 let downX=0,downY=0, movedPointer=false;
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;movedPointer=false;downX=lastX=e.clientX;downY=lastY=e.clientY;try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}});
 renderer.domElement.addEventListener('pointerup',e=>{if(dragging&&!movedPointer&&Math.hypot(e.clientX-downX,e.clientY-downY)<18)pointer(e);dragging=false});
@@ -108,14 +133,17 @@ renderer.domElement.addEventListener('pointercancel',()=>{dragging=false});
 renderer.domElement.addEventListener('pointermove',e=>{if(dragging){const dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)movedPointer=true;angle-=dx*.008;tilt=Math.max(.25,Math.min(1.35,tilt+dy*.006));lastX=e.clientX;lastY=e.clientY;updateCamera()}});
 renderer.domElement.addEventListener('wheel',e=>{radius=Math.max(12,Math.min(65,radius+e.deltaY*.025));updateCamera()});
 document.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{selected=b.dataset.kind;document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('status').textContent='Baumodus · '+b.title+' ausgewählt'});
-function setMode(m){mode=m;document.getElementById('buildBtn').classList.toggle('active',m==='build');document.getElementById('walkBtn').classList.toggle('active',m==='walk');document.getElementById('touchControls').classList.toggle('visible',m==='walk');document.getElementById('status').textContent=m==='build'?'Baumodus · '+selected+' ausgewählt':'Erkundungsmodus · Richtungstasten oder WASD'}
-document.getElementById('buildBtn').onclick=()=>{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Baumodus · '+selected+' ausgewählt'};document.getElementById('walkBtn').onclick=()=>{setMode('walk');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active')};document.getElementById('eraseBtn').onclick=()=>{setMode('build');eraseMode=!eraseMode;document.getElementById('eraseBtn').classList.toggle('active',eraseMode);document.getElementById('status').textContent=eraseMode?'Radier-Modus · Block antippen zum Entfernen':'Baumodus · '+selected+' ausgewählt'};
+function renderInventory(){const el=document.getElementById('inventory');if(!el)return;el.innerHTML='';Object.keys(inventory).forEach(type=>{const b=document.createElement('button');b.className='invslot'+(selected===type?' selected':'');b.textContent=({grass:'🌿 Gras',dirt:'🟫 Erde',stone:'🪨 Stein',wood:'🪵 Holz',leaves:'🍃 Blätter',water:'💧 Wasser'}[type])+' ×'+inventory[type];b.onclick=()=>{selected=type;document.querySelectorAll('.swatch').forEach(x=>x.classList.toggle('active',x.dataset.kind===type));renderInventory();};el.appendChild(b);});}
+function setSurvivalAction(action){survivalAction=action;document.getElementById('mineAction').classList.toggle('active',action==='mine');document.getElementById('placeAction').classList.toggle('active',action==='place');}
+function drawMiniMap(){const c=document.getElementById('miniMap'),ctx=c.getContext('2d');ctx.clearRect(0,0,200,200);ctx.fillStyle='#1d3141';ctx.fillRect(0,0,200,200);const scale=5;blocks.forEach(b=>{if(b.position.y>=terrainHeight(b.userData.x,b.userData.z)-.1){ctx.fillStyle=({grass:'#58a94f',dirt:'#8b5735',stone:'#89939c',wood:'#9a6738',leaves:'#267b43',water:'#2699d6'}[b.userData.type]||'#fff');ctx.fillRect(100+b.position.x*scale-2,100+b.position.z*scale-2,4,4);}});ctx.fillStyle='#ffdf5d';ctx.beginPath();ctx.arc(100+player.x*scale,100+player.z*scale,4,0,Math.PI*2);ctx.fill();}
+function setMode(m){mode=m;document.getElementById('buildBtn').classList.toggle('active',m==='build');document.getElementById('walkBtn').classList.toggle('active',m==='walk');document.getElementById('survivalBtn').classList.toggle('active',m==='survival');document.getElementById('touchControls').classList.toggle('visible',m!=='build');document.getElementById('survivalHud').classList.toggle('visible',m==='survival');document.getElementById('miniMap').classList.toggle('visible',m==='survival');document.getElementById('status').textContent=m==='build'?'Baumodus · '+selected+' ausgewählt':m==='survival'?'Survival · Sammeln und platzieren':'Erkundungsmodus · Richtungstasten oder WASD';if(m==='survival')renderInventory();}
+document.getElementById('buildBtn').onclick=()=>{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Baumodus · '+selected+' ausgewählt'};document.getElementById('walkBtn').onclick=()=>{setMode('walk');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active')};document.getElementById('survivalBtn').onclick=()=>{setMode('survival');setSurvivalAction('mine');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active')};document.getElementById('mineAction').onclick=()=>setSurvivalAction('mine');document.getElementById('placeAction').onclick=()=>setSurvivalAction('place');document.getElementById('eraseBtn').onclick=()=>{setMode('build');eraseMode=!eraseMode;document.getElementById('eraseBtn').classList.toggle('active',eraseMode);document.getElementById('status').textContent=eraseMode?'Radier-Modus · Block antippen zum Entfernen':'Baumodus · '+selected+' ausgewählt'};
 document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('lifeverse-world',JSON.stringify(blocks.map(b=>b.userData)));alert('Deine Welt wurde auf diesem Gerät gespeichert!')};
 document.getElementById('loadBtn').onclick=()=>{const data=JSON.parse(localStorage.getItem('lifeverse-world')||'null');if(!data){alert('Noch keine gespeicherte Welt gefunden.');return}clearWorld();data.forEach(b=>addBlock(b.x,b.y,b.z,b.type));alert('Deine Welt wurde geladen!')};
 document.getElementById('newBtn').onclick=()=>{if(confirm('Möchtest du eine neue Welt erstellen?'))makeWorld()};
 document.getElementById('dayBtn').onclick=()=>{night=!night;scene.background=new THREE.Color(night?0x101a3b:0x87c8ed);scene.fog.color.copy(scene.background);sun.intensity=night?.35:2;sun.color.set(night?0x9abaff:0xffffff)};
 const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#touchControls button').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>keys[k]=false;b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});
-let previousFrame=performance.now();function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(mode==='walk'){updatePlayer(dt);const target=new THREE.Vector3(player.x,player.feet+1.2,player.z);const behind=new THREE.Vector3(player.x,player.feet+6.2,player.z+11);camera.position.lerp(behind,.09);camera.lookAt(target);}renderer.render(scene,camera)}animate();
+let previousFrame=performance.now();function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(mode==='walk'||mode==='survival'){updatePlayer(dt);const target=new THREE.Vector3(player.x,player.feet+1.2,player.z);const behind=new THREE.Vector3(player.x,player.feet+6.2,player.z+11);camera.position.lerp(behind,.09);camera.lookAt(target);}if(mode==='survival')drawMiniMap();renderer.render(scene,camera)}animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.textContent='Fertig! Viel Spaß beim Bauen.';setTimeout(()=>document.getElementById('loader').classList.add('hide'),450)},1500);
 </script>
