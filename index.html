@@ -72,6 +72,19 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 .mode-enter{display:inline-block;padding:10px 17px;border:1px solid #c1c39d;border-radius:5px;background:#333d2be8;color:#fff;font-weight:800;letter-spacing:1px;font-size:12px}
 .mode-card.survival .mode-enter{background:#4a5935e8}.mode-card.creative .mode-enter{background:#4b5848e8}
 @media(max-width:650px){#modeSelect{padding:16px;align-items:flex-start}.mode-intro{margin-bottom:16px}.mode-cards{grid-template-columns:1fr;gap:12px}.mode-card{min-height:220px}.mode-card-content{padding:16px}.mode-card h2{font-size:23px}}
+
+/* ESC-Pausenmenü */
+#pauseMenu{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:20px;background:#080c09b8;backdrop-filter:blur(7px)}
+#pauseMenu.visible{display:flex}
+.pause-card{width:min(440px,94vw);padding:28px 24px;background:linear-gradient(145deg,#3b4435f5,#151b15f8);border:1px solid #a9ad8c;border-radius:12px;box-shadow:0 18px 60px #000c;text-align:center}
+.pause-mark{font:900 42px Georgia,serif;color:#e8e4d2;text-shadow:0 3px 9px #000}
+.pause-card h2{font:900 25px Georgia,serif;letter-spacing:4px;color:#eee9d8;margin:5px 0 4px}
+.pause-card p{font-size:12px;color:#c2c8b5;margin:0 0 20px;letter-spacing:1px}
+.pause-actions{display:grid;gap:9px}
+.pause-actions button{width:100%;padding:13px 12px;font-size:14px;letter-spacing:.5px}
+.pause-actions .pause-primary{background:linear-gradient(145deg,#667a4d,#35472f);border-color:#c0c99d}
+.pause-actions .pause-exit{background:linear-gradient(145deg,#704b3c,#422b25);border-color:#b78b75}
+.logo{cursor:pointer}.logo:focus-visible{outline:2px solid #e6d99f;outline-offset:4px}
 </style>
 </head>
 <body>
@@ -101,9 +114,24 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   </div>
  </div>
 </div>
+
+<div id="pauseMenu" role="dialog" aria-modal="true" aria-label="Pause-Menü">
+ <div class="pause-card">
+  <div class="pause-mark">L</div>
+  <h2>LIFEVERSE</h2>
+  <p>DEINE WELT. DEINE REGELN.</p>
+  <div class="pause-actions">
+   <button id="resumeGame" class="pause-primary">▶ WEITERSPIELEN</button>
+   <button id="pauseSave">💾 WELT SPEICHERN</button>
+   <button id="switchSurvival">⚔️ ZU SURVIVAL WECHSELN</button>
+   <button id="switchCreative">🧱 ZU CREATIVE WECHSELN</button>
+   <button id="leaveGame" class="pause-exit">🚪 SPIEL VERLASSEN</button>
+  </div>
+ </div>
+</div>
 <div id="game"></div>
 <header>
- <div class="logo"><span class="mini-mark">L</span> LIFEVERSE <small>DEINE WELT. DEINE REGELN.</small></div>
+ <div class="logo" id="pauseLogo" role="button" tabindex="0" aria-label="Pause-Menü öffnen"><span class="mini-mark">L</span> LIFEVERSE <small>DEINE WELT. DEINE REGELN.</small></div>
  <div class="panel"><button id="buildBtn" class="active">🏗️ Bauen</button> <button id="walkBtn">🎮 Erkunden</button> <button id="survivalBtn">🪓 Survival</button><div id="status">Baumodus · Gras ausgewählt</div></div>
 </header>
 <div id="toolbar">
@@ -152,7 +180,7 @@ const sun=new THREE.DirectionalLight(0xffffff,1.65);sun.position.set(8,20,10);su
 sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-35;sun.shadow.camera.right=35;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;sun.shadow.bias=-0.00015;
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x426f3c,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-2.55;ground.receiveShadow=true;scene.add(ground);
 const cubeGeo=new THREE.BoxGeometry(1,1,1),materials={grass:0x58a94f,dirt:0x8b5735,stone:0x89939c,wood:0x9a6738,leaves:0x267b43,water:0x2699d6,workbench:0x8b5a2b},blockMaterials=Object.fromEntries(Object.entries(materials).map(([k,c])=>[k,new THREE.MeshStandardMaterial({color:c,roughness:k==='water'?.28:.9,transparent:k==='water',opacity:k==='water'?.78:1})]));
-let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,survivalAction='mine',firstPerson=false,generatedChunks=new Set(),inventory={grass:0,dirt:0,stone:0,wood:0,leaves:0,water:0},crafted={planks:0,sticks:0,workbench:0,pickaxe:0},inventorySlots=Array(36).fill(null),selectedSlot=-1,inventoryOpen=false,inventoryPick=-1,inventoryDragSource=-1,inventoryDragMoved=false,suppressInventoryClick=false,workbenchPlaced=false,player={x:0,z:0,feet:0.5,vy:0,onGround:true};
+let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,survivalAction='mine',firstPerson=false,gamePaused=false,generatedChunks=new Set(),inventory={grass:0,dirt:0,stone:0,wood:0,leaves:0,water:0},crafted={planks:0,sticks:0,workbench:0,pickaxe:0},inventorySlots=Array(36).fill(null),selectedSlot=-1,inventoryOpen=false,inventoryPick=-1,inventoryDragSource=-1,inventoryDragMoved=false,suppressInventoryClick=false,workbenchPlaced=false,player={x:0,z:0,feet:0.5,vy:0,onGround:true};
 // Sichtbare Spielfigur: Füße liegen bei player.feet.
 const avatar=new THREE.Group();
 const skinMat=new THREE.MeshStandardMaterial({color:0xf0bd91,roughness:.82});
@@ -240,11 +268,18 @@ document.getElementById('loadBtn').onclick=()=>{if(!activeSaveMode){alert('Wähl
 document.getElementById('newBtn').onclick=()=>{if(confirm('Möchtest du eine neue '+(activeSaveMode==='survival'?'Survival':'Creative')+'-Welt erstellen? Dein bisheriger Spielstand wird ersetzt.')){makeWorld();saveCurrentWorld();}};
 setInterval(()=>saveCurrentWorld(false),10000);
 document.getElementById('dayBtn').onclick=()=>{night=!night;scene.background=new THREE.Color(night?0x101a3b:0x87c8ed);scene.fog.color.copy(scene.background);sun.intensity=night?.35:2;sun.color.set(night?0x9abaff:0xffffff)};
-const keys={};addEventListener('keydown',e=>{if(e.code==='Space'){jumpQueued=true;e.preventDefault();}keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#dpad button,#jumpBtn').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();if(k==='space')jumpQueued=true;else keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>{if(k!=='space')keys[k]=false;};b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});const joystick=document.getElementById('joystick'),stickKnob=document.getElementById('stickKnob');let joyPointer=null;function resetJoystick(){joyPointer=null;keys.w=keys.a=keys.s=keys.d=false;stickKnob.style.transform='translate(0px,0px)'}function moveJoystick(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max= Math.min(r.width,r.height)*.34,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max;}stickKnob.style.transform='translate('+dx+'px,'+dy+'px)';const nx=dx/max,ny=dy/max;keys.w=ny<-.28;keys.s=ny>.28;keys.a=nx<-.28;keys.d=nx>.28;}joystick.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;try{joystick.setPointerCapture(e.pointerId)}catch(_){}moveJoystick(e)});joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoystick(e)}});joystick.addEventListener('pointerup',e=>{if(e.pointerId===joyPointer)resetJoystick()});joystick.addEventListener('pointercancel',resetJoystick);
-let previousFrame=performance.now(),lastMiniMapDraw=0,lastOutlineUpdate=0;function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(mode==='walk'||mode==='survival'){updatePlayer(dt);ensureChunks();updateFollowCamera(true);}if(mode==='survival'&&now-lastMiniMapDraw>350){drawMiniMap();lastMiniMapDraw=now;}if(now-lastOutlineUpdate>100){updateBlockOutline();lastOutlineUpdate=now;}renderer.render(scene,camera)}animate();
+const keys={};addEventListener('keydown',e=>{if(e.code==='Escape'){e.preventDefault();if(document.getElementById('modeSelect').classList.contains('visible'))return;togglePause();return;}if(gamePaused)return;if(e.code==='Space'){jumpQueued=true;e.preventDefault();}keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#dpad button,#jumpBtn').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();if(k==='space')jumpQueued=true;else keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>{if(k!=='space')keys[k]=false;};b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});const joystick=document.getElementById('joystick'),stickKnob=document.getElementById('stickKnob');let joyPointer=null;function resetJoystick(){joyPointer=null;keys.w=keys.a=keys.s=keys.d=false;stickKnob.style.transform='translate(0px,0px)'}function moveJoystick(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max= Math.min(r.width,r.height)*.34,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max;}stickKnob.style.transform='translate('+dx+'px,'+dy+'px)';const nx=dx/max,ny=dy/max;keys.w=ny<-.28;keys.s=ny>.28;keys.a=nx<-.28;keys.d=nx>.28;}joystick.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;try{joystick.setPointerCapture(e.pointerId)}catch(_){}moveJoystick(e)});joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoystick(e)}});joystick.addEventListener('pointerup',e=>{if(e.pointerId===joyPointer)resetJoystick()});joystick.addEventListener('pointercancel',resetJoystick);
+let previousFrame=performance.now(),lastMiniMapDraw=0,lastOutlineUpdate=0;function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(!gamePaused&&(mode==='walk'||mode==='survival')){updatePlayer(dt);ensureChunks();updateFollowCamera(true);}if(!gamePaused&&mode==='survival'&&now-lastMiniMapDraw>350){drawMiniMap();lastMiniMapDraw=now;}if(now-lastOutlineUpdate>100){updateBlockOutline();lastOutlineUpdate=now;}renderer.render(scene,camera)}animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-function enterGame(selectedMode){activeSaveMode=selectedMode;const hadSave=loadModeWorld(selectedMode);document.getElementById('modeSelect').classList.remove('visible');if(selectedMode==='survival'){firstPerson=false;setMode('survival');setSurvivalAction('mine');}else{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Creative · Frei bauen und gestalten';}if(!hadSave)saveCurrentWorld(false);}
+function togglePause(force){if(!activeSaveMode)return;const next=typeof force==='boolean'?force:!gamePaused;gamePaused=next;document.getElementById('pauseMenu').classList.toggle('visible',gamePaused);if(gamePaused){saveCurrentWorld(false);Object.keys(keys).forEach(k=>keys[k]=false);} }
+function enterGame(selectedMode){gamePaused=false;document.getElementById('pauseMenu').classList.remove('visible');activeSaveMode=selectedMode;const hadSave=loadModeWorld(selectedMode);document.getElementById('modeSelect').classList.remove('visible');if(selectedMode==='survival'){firstPerson=false;setMode('survival');setSurvivalAction('mine');}else{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Creative · Frei bauen und gestalten';}if(!hadSave)saveCurrentWorld(false);}
 function bindModeCard(id,selectedMode){const el=document.getElementById(id);el.addEventListener('click',()=>enterGame(selectedMode));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();enterGame(selectedMode);}});}
+const pauseLogo=document.getElementById('pauseLogo');pauseLogo.addEventListener('click',()=>togglePause());pauseLogo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();togglePause();}});
+document.getElementById('resumeGame').onclick=()=>togglePause(false);
+document.getElementById('pauseSave').onclick=()=>saveCurrentWorld(true);
+document.getElementById('switchSurvival').onclick=()=>{saveCurrentWorld(false);enterGame('survival');};
+document.getElementById('switchCreative').onclick=()=>{saveCurrentWorld(false);enterGame('creative');};
+document.getElementById('leaveGame').onclick=()=>{saveCurrentWorld(false);togglePause(false);activeSaveMode=null;document.getElementById('modeSelect').classList.add('visible');};
 bindModeCard('chooseSurvival','survival');bindModeCard('chooseCreative','creative');
 setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.textContent='Fertig! Wähle deinen Spielmodus.';setTimeout(()=>{document.getElementById('loader').classList.add('hide');document.getElementById('modeSelect').classList.add('visible');},450)},1500);
 </script>
