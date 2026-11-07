@@ -6,7 +6,7 @@
 <title>LIFEVERSE – Deine eigene Welt</title>
 <style>
 *{box-sizing:border-box}body{margin:0;overflow:hidden;background:#101827;color:#fff;font-family:system-ui,Arial}
-#game{position:fixed;inset:0}canvas{display:block}
+#game{position:fixed;inset:0}canvas{display:block;touch-action:none}
 #loader{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#244b68,#101827 65%);transition:opacity .6s}
 #loader.hide{opacity:0;pointer-events:none}.loadlogo{font-size:clamp(34px,8vw,64px);font-weight:950;letter-spacing:5px;color:#9beaff;text-shadow:0 0 24px #40cfff66}
 .loadsub{margin-top:8px;letter-spacing:3px;color:#d3e7f3;font-size:12px}
@@ -77,9 +77,11 @@ const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();let dragging=fal
 function updateCamera(){camera.position.set(Math.sin(angle)*radius,Math.max(4,Math.sin(tilt)*radius),Math.cos(angle)*radius);camera.lookAt(0,0,0)}
 updateCamera();
 function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<7&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}}}
-renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY});
-renderer.domElement.addEventListener('pointerup',e=>{if(dragging&&Math.hypot(e.clientX-lastX,e.clientY-lastY)<6)pointer(e);dragging=false});
-renderer.domElement.addEventListener('pointermove',e=>{if(dragging){angle-=(e.clientX-lastX)*.008;tilt=Math.max(.25,Math.min(1.35,tilt+(e.clientY-lastY)*.006));lastX=e.clientX;lastY=e.clientY;updateCamera()}});
+let downX=0,downY=0, movedPointer=false;
+renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;movedPointer=false;downX=lastX=e.clientX;downY=lastY=e.clientY;try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}});
+renderer.domElement.addEventListener('pointerup',e=>{if(dragging&&!movedPointer&&Math.hypot(e.clientX-downX,e.clientY-downY)<10)pointer(e);dragging=false});
+renderer.domElement.addEventListener('pointercancel',()=>{dragging=false});
+renderer.domElement.addEventListener('pointermove',e=>{if(dragging){const dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)movedPointer=true;angle-=dx*.008;tilt=Math.max(.25,Math.min(1.35,tilt+dy*.006));lastX=e.clientX;lastY=e.clientY;updateCamera()}});
 renderer.domElement.addEventListener('wheel',e=>{radius=Math.max(8,Math.min(35,radius+e.deltaY*.02));updateCamera()});
 document.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{selected=b.dataset.kind;document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('status').textContent='Baumodus · '+b.title+' ausgewählt'});
 function setMode(m){mode=m;document.getElementById('buildBtn').classList.toggle('active',m==='build');document.getElementById('walkBtn').classList.toggle('active',m==='walk');document.getElementById('status').textContent=m==='build'?'Baumodus · '+selected+' ausgewählt':'Erkundungsmodus · WASD / Pfeiltasten'}
