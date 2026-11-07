@@ -57,7 +57,7 @@ button:hover{filter:brightness(1.15)}
  <button class="swatch" data-kind="leaves" title="Blätter" style="background:#267b43"></button>
  <button class="swatch" data-kind="water" title="Wasser" style="background:#2699d6"></button>
 </div>
-<div id="hint" class="panel">Maus ziehen: Welt drehen · Mausrad: zoomen<br>Baumodus: auf einen Block tippen, um darauf zu bauen.<br>Erkunden: WASD oder Pfeiltasten.</div>
+<div id="hint" class="panel">Maus ziehen: Welt drehen · Mausrad: zoomen<br>Baumodus: auf einen Block tippen, um darauf zu bauen.<br>Erkunden: WASD/Pfeile, Leertaste zum Springen. Blöcke bleiben stehen; die Figur fällt mit Schwerkraft.</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
 const progress=document.getElementById('progress'),loadtext=document.getElementById('loadtext');
@@ -67,17 +67,37 @@ const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);came
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;document.getElementById('game').appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x52634a,2));
 const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(8,20,10);sun.castShadow=true;scene.add(sun);
-sun.shadow.mapSize.set(1024,1024);
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x568b49}));ground.rotation.x=-Math.PI/2;ground.position.y=-.53;ground.receiveShadow=true;scene.add(ground);
+sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-18;sun.shadow.camera.right=18;sun.shadow.camera.top=18;sun.shadow.camera.bottom=-18;sun.shadow.bias=-0.00015;
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x477d42,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.53;ground.receiveShadow=true;scene.add(ground);
 const grid=new THREE.GridHelper(24,24,0x284b32,0x47734a);grid.position.y=-.5;scene.add(grid);
 const cubeGeo=new THREE.BoxGeometry(1,1,1),materials={grass:0x58a94f,dirt:0x8b5735,stone:0x89939c,wood:0x9a6738,leaves:0x267b43,water:0x2699d6};
-let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,player={x:0,z:0};
+let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,player={x:0,z:0,feet:0.5,vy:0,onGround:true};
+// Sichtbare Spielfigur: Füße liegen bei player.feet.
+const avatar=new THREE.Group();
+const skinMat=new THREE.MeshStandardMaterial({color:0xf0bd91,roughness:.82});
+const shirtMat=new THREE.MeshStandardMaterial({color:0x1686b5,roughness:.75});
+const pantsMat=new THREE.MeshStandardMaterial({color:0x263c70,roughness:.85});
+const body=new THREE.Mesh(new THREE.BoxGeometry(.62,.72,.34),shirtMat);body.position.y=1.05;body.castShadow=true;avatar.add(body);
+const head=new THREE.Mesh(new THREE.BoxGeometry(.46,.46,.43),skinMat);head.position.y=1.66;head.castShadow=true;avatar.add(head);
+const legGeo=new THREE.BoxGeometry(.22,.55,.25);
+const legL=new THREE.Mesh(legGeo,pantsMat),legR=new THREE.Mesh(legGeo,pantsMat);legL.position.set(-.17,.275,0);legR.position.set(.17,.275,0);legL.castShadow=legR.castShadow=true;avatar.add(legL,legR);
+const armGeo=new THREE.BoxGeometry(.2,.62,.22);const armL=new THREE.Mesh(armGeo,skinMat),armR=new THREE.Mesh(armGeo,skinMat);armL.position.set(-.42,1.08,0);armR.position.set(.42,1.08,0);avatar.add(armL,armR);armL.castShadow=armR.castShadow=true;
+scene.add(avatar);
 function addBlock(x,y,z,type){const mesh=new THREE.Mesh(cubeGeo,new THREE.MeshStandardMaterial({color:materials[type],transparent:type==='water',opacity:type==='water'?.78:1}));mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData={x,y,z,type};scene.add(mesh);blocks.push(mesh);return mesh}
 function clearWorld(){blocks.forEach(b=>scene.remove(b));blocks=[]}
 function makeWorld(){clearWorld();for(let x=-5;x<=5;x++)for(let z=-5;z<=5;z++){addBlock(x,-0.0,z,'grass');if(Math.random()>.91){addBlock(x,1,z,'leaves');addBlock(x,2,z,'leaves');addBlock(x,0,z,'wood')}}}
 makeWorld();
 const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();let dragging=false,lastX=0,lastY=0,angle=0.7,radius=19,tilt=.65;
 function updateCamera(){camera.position.set(Math.sin(angle)*radius,Math.max(4,Math.sin(tilt)*radius),Math.cos(angle)*radius);camera.lookAt(0,0,0)}
+function isSolidAt(x,z,feet){return blocks.some(b=>{const p=b.position;return b.userData.type!=='water'&&Math.abs(p.x-x)<.78&&Math.abs(p.z-z)<.78&&feet<p.y+.5+1.7&&feet+1.7>p.y-.5})}
+function movePlayer(dx,dz){const nx=player.x+dx;if(!isSolidAt(nx,player.z,player.feet))player.x=nx;const nz=player.z+dz;if(!isSolidAt(player.x,nz,player.feet))player.z=nz;}
+function updatePlayer(dt){const speed=4.2;let dx=0,dz=0;if(keys.w||keys.arrowup)dz-=1;if(keys.s||keys.arrowdown)dz+=1;if(keys.a||keys.arrowleft)dx-=1;if(keys.d||keys.arrowright)dx+=1;const len=Math.hypot(dx,dz)||1;movePlayer(dx/len*speed*dt,dz/len*speed*dt);
+if((keys[' ']||keys.space)&&player.onGround){player.vy=7.2;player.onGround=false;keys[' ']=false;keys.space=false;}
+const oldFeet=player.feet;player.vy-=19*dt;player.feet+=player.vy*dt;let landing=-.53;
+for(const b of blocks){if(b.userData.type==='water')continue;const p=b.position;if(Math.abs(p.x-player.x)<.72&&Math.abs(p.z-player.z)<.72){const top=p.y+.5;if(oldFeet>=top-.08&&player.feet<=top&&player.vy<=0)landing=Math.max(landing,top);}}
+if(player.feet<=landing){player.feet=landing;player.vy=0;player.onGround=true}else player.onGround=false;
+avatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=Math.atan2(dx||0,dz||1);
+}
 updateCamera();
 function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<7&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}}}
 let downX=0,downY=0, movedPointer=false;
@@ -93,8 +113,8 @@ document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('lifeverse-
 document.getElementById('loadBtn').onclick=()=>{const data=JSON.parse(localStorage.getItem('lifeverse-world')||'null');if(!data){alert('Noch keine gespeicherte Welt gefunden.');return}clearWorld();data.forEach(b=>addBlock(b.x,b.y,b.z,b.type));alert('Deine Welt wurde geladen!')};
 document.getElementById('newBtn').onclick=()=>{if(confirm('Möchtest du eine neue Welt erstellen?'))makeWorld()};
 document.getElementById('dayBtn').onclick=()=>{night=!night;scene.background=new THREE.Color(night?0x101a3b:0x87c8ed);scene.fog.color.copy(scene.background);sun.intensity=night?.35:2;sun.color.set(night?0x9abaff:0xffffff)};
-const keys={};addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#touchControls button').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>keys[k]=false;b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});
-function animate(){requestAnimationFrame(animate);if(mode==='walk'){const speed=.09;if(keys.w||keys.arrowup)player.z-=speed;if(keys.s||keys.arrowdown)player.z+=speed;if(keys.a||keys.arrowleft)player.x-=speed;if(keys.d||keys.arrowright)player.x+=speed;camera.position.x+=(player.x-camera.position.x)*.04;camera.position.z+=(player.z+8-camera.position.z)*.04;camera.position.y+=(5-camera.position.y)*.04;camera.lookAt(player.x,1,player.z)}renderer.render(scene,camera)}animate();
+const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#touchControls button').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>keys[k]=false;b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});
+let previousFrame=performance.now();function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(mode==='walk'){updatePlayer(dt);const target=new THREE.Vector3(player.x,player.feet+2.1,player.z);const behind=new THREE.Vector3(player.x,player.feet+4.2,player.z+7);camera.position.lerp(behind,.09);camera.lookAt(target);}renderer.render(scene,camera)}animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.textContent='Fertig! Viel Spaß beim Bauen.';setTimeout(()=>document.getElementById('loader').classList.add('hide'),450)},1500);
 </script>
