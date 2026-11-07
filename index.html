@@ -93,7 +93,7 @@ const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(8,20,10);sun.c
 sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-35;sun.shadow.camera.right=35;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;sun.shadow.bias=-0.00015;
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x426f3c,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-2.55;ground.receiveShadow=true;scene.add(ground);
 const cubeGeo=new THREE.BoxGeometry(1,1,1),materials={grass:0x58a94f,dirt:0x8b5735,stone:0x89939c,wood:0x9a6738,leaves:0x267b43,water:0x2699d6,workbench:0x8b5a2b};
-let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,survivalAction='mine',inventory={grass:0,dirt:0,stone:0,wood:0,leaves:0,water:0},crafted={planks:0,sticks:0,workbench:0,pickaxe:0},player={x:0,z:0,feet:0.5,vy:0,onGround:true};
+let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,survivalAction='mine',inventory={grass:0,dirt:0,stone:0,wood:0,leaves:0,water:0},crafted={planks:0,sticks:0,workbench:0,pickaxe:0},workbenchPlaced=false,player={x:0,z:0,feet:0.5,vy:0,onGround:true};
 // Sichtbare Spielfigur: Füße liegen bei player.feet.
 const avatar=new THREE.Group();
 const skinMat=new THREE.MeshStandardMaterial({color:0xf0bd91,roughness:.82});
@@ -129,8 +129,8 @@ updateCamera();
 function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;
 if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}
 else if(mode==='survival'){
- if(survivalAction==='mine'){const type=h.object.userData.type;if(type==='workbench')crafted.workbench=(crafted.workbench||0)+1;else inventory[type]=(inventory[type]||0)+1;scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object);renderInventory();}
- else {const type=selected;const available=type==='workbench'?(crafted.workbench||0):(inventory[type]||0);if(available>0){const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);if(type==='workbench')crafted.workbench--;else inventory[type]--;renderInventory();}}}
+ if(survivalAction==='mine'){const type=h.object.userData.type;if(type==='workbench'){crafted.workbench=(crafted.workbench||0)+1;workbenchPlaced=false;}else inventory[type]=(inventory[type]||0)+1;scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object);renderInventory();}
+ else {const type=selected;const available=type==='workbench'?(crafted.workbench||0):(inventory[type]||0);if(available>0){const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);if(type==='workbench'){crafted.workbench--;workbenchPlaced=true;}else inventory[type]--;renderInventory();}}}
 }}}
 let downX=0,downY=0, movedPointer=false;
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;movedPointer=false;downX=lastX=e.clientX;downY=lastY=e.clientY;try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}});
@@ -145,7 +145,7 @@ const recipes=[
 {id:'sticks',name:'🪄 4 Stöcke',need:{planks:2},out:{sticks:4},desc:'2 Holzbretter'},
 {id:'workbench',name:'🛠️ Werkbank',need:{planks:4},out:{workbench:1},desc:'4 Holzbretter'},
 {id:'pickaxe',name:'⛏️ Steinspitzhacke',need:{stone:3,sticks:2},requires:{workbench:1},out:{pickaxe:1},desc:'3 Stein + 2 Stöcke · Werkbank nötig'}];
-function canCraft(recipe){return Object.entries(recipe.need).every(([k,v])=>(inventory[k]||crafted[k]||0)>=v)&&Object.entries(recipe.requires||{}).every(([k,v])=>(crafted[k]||0)>=v);}
+function canCraft(recipe){return Object.entries(recipe.need).every(([k,v])=>(inventory[k]||crafted[k]||0)>=v)&&Object.entries(recipe.requires||{}).every(([k,v])=>((crafted[k]||0)+(k==='workbench'&&workbenchPlaced?1:0))>=v);}
 function renderCrafting(){const el=document.getElementById('recipes');if(!el)return;el.innerHTML='';recipes.forEach(recipe=>{const b=document.createElement('button');b.className='recipe';b.disabled=!canCraft(recipe);b.innerHTML='<span>'+recipe.name+'<small>'+recipe.desc+' · Besitzt: '+(crafted[recipe.id]||0)+'</small></span><strong>Herstellen</strong>';b.onclick=()=>craftRecipe(recipe);el.appendChild(b);});}
 function craftRecipe(recipe){if(!canCraft(recipe))return;Object.entries(recipe.need).forEach(([k,v])=>{if(inventory[k]!==undefined)inventory[k]-=v;else crafted[k]-=v;});Object.entries(recipe.out).forEach(([k,v])=>crafted[k]=(crafted[k]||0)+v);renderInventory();}
 function setSurvivalAction(action){survivalAction=action;document.getElementById('mineAction').classList.toggle('active',action==='mine');document.getElementById('placeAction').classList.toggle('active',action==='place');}
