@@ -44,6 +44,7 @@ button:hover{filter:brightness(1.15)}
  <button id="loadBtn">📂 Laden</button>
  <button id="newBtn">🌱 Neue Welt</button>
  <button id="dayBtn">☀️ Tag / Nacht</button>
+ <button id="eraseBtn">🧹 Blöcke entfernen</button>
 </div>
 <div id="bottom" class="panel">
  <span style="font-size:12px">BLOCK:</span>
@@ -61,13 +62,13 @@ const progress=document.getElementById('progress'),loadtext=document.getElementB
 let pct=0;const loaderTimer=setInterval(()=>{pct=Math.min(95,pct+Math.random()*13);progress.style.width=pct+'%';loadtext.textContent='Welt wird vorbereitet … '+Math.floor(pct)+'%';},130);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x87c8ed);scene.fog=new THREE.Fog(0x87c8ed,24,65);
 const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);camera.position.set(10,12,15);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;document.getElementById('game').appendChild(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;document.getElementById('game').appendChild(renderer.domElement);sun.shadow.mapSize.set(1024,1024);
 scene.add(new THREE.HemisphereLight(0xffffff,0x52634a,2));
 const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(8,20,10);sun.castShadow=true;scene.add(sun);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x568b49}));ground.rotation.x=-Math.PI/2;ground.position.y=-.53;ground.receiveShadow=true;scene.add(ground);
 const grid=new THREE.GridHelper(24,24,0x284b32,0x47734a);grid.position.y=-.5;scene.add(grid);
 const cubeGeo=new THREE.BoxGeometry(1,1,1),materials={grass:0x58a94f,dirt:0x8b5735,stone:0x89939c,wood:0x9a6738,leaves:0x267b43,water:0x2699d6};
-let blocks=[],selected='grass',mode='build',night=false,player={x:0,z:0};
+let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,player={x:0,z:0};
 function addBlock(x,y,z,type){const mesh=new THREE.Mesh(cubeGeo,new THREE.MeshStandardMaterial({color:materials[type],transparent:type==='water',opacity:type==='water'?.78:1}));mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData={x,y,z,type};scene.add(mesh);blocks.push(mesh);return mesh}
 function clearWorld(){blocks.forEach(b=>scene.remove(b));blocks=[]}
 function makeWorld(){clearWorld();for(let x=-5;x<=5;x++)for(let z=-5;z<=5;z++){addBlock(x,-0.0,z,'grass');if(Math.random()>.91){addBlock(x,1,z,'leaves');addBlock(x,2,z,'leaves');addBlock(x,0,z,'wood')}}}
@@ -75,14 +76,14 @@ makeWorld();
 const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();let dragging=false,lastX=0,lastY=0,angle=0.7,radius=19,tilt=.65;
 function updateCamera(){camera.position.set(Math.sin(angle)*radius,Math.max(4,Math.sin(tilt)*radius),Math.cos(angle)*radius);camera.lookAt(0,0,0)}
 updateCamera();
-function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;if(mode==='build'){const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<7)addBlock(x,y,z,selected)} }}
+function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;if(mode==='build'){if(eraseMode){scene.remove(h.object);blocks=blocks.filter(b=>b!==h.object)}else{const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<7&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z))addBlock(x,y,z,selected)}}}}
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY});
 renderer.domElement.addEventListener('pointerup',e=>{if(dragging&&Math.hypot(e.clientX-lastX,e.clientY-lastY)<6)pointer(e);dragging=false});
 renderer.domElement.addEventListener('pointermove',e=>{if(dragging){angle-=(e.clientX-lastX)*.008;tilt=Math.max(.25,Math.min(1.35,tilt+(e.clientY-lastY)*.006));lastX=e.clientX;lastY=e.clientY;updateCamera()}});
 renderer.domElement.addEventListener('wheel',e=>{radius=Math.max(8,Math.min(35,radius+e.deltaY*.02));updateCamera()});
 document.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{selected=b.dataset.kind;document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('status').textContent='Baumodus · '+b.title+' ausgewählt'});
 function setMode(m){mode=m;document.getElementById('buildBtn').classList.toggle('active',m==='build');document.getElementById('walkBtn').classList.toggle('active',m==='walk');document.getElementById('status').textContent=m==='build'?'Baumodus · '+selected+' ausgewählt':'Erkundungsmodus · WASD / Pfeiltasten'}
-document.getElementById('buildBtn').onclick=()=>setMode('build');document.getElementById('walkBtn').onclick=()=>setMode('walk');
+document.getElementById('buildBtn').onclick=()=>{setMode('build');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active');document.getElementById('status').textContent='Baumodus · '+selected+' ausgewählt'};document.getElementById('walkBtn').onclick=()=>{setMode('walk');eraseMode=false;document.getElementById('eraseBtn').classList.remove('active')};document.getElementById('eraseBtn').onclick=()=>{setMode('build');eraseMode=!eraseMode;document.getElementById('eraseBtn').classList.toggle('active',eraseMode);document.getElementById('status').textContent=eraseMode?'Radier-Modus · Block antippen zum Entfernen':'Baumodus · '+selected+' ausgewählt'};
 document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('lifeverse-world',JSON.stringify(blocks.map(b=>b.userData)));alert('Deine Welt wurde auf diesem Gerät gespeichert!')};
 document.getElementById('loadBtn').onclick=()=>{const data=JSON.parse(localStorage.getItem('lifeverse-world')||'null');if(!data){alert('Noch keine gespeicherte Welt gefunden.');return}clearWorld();data.forEach(b=>addBlock(b.x,b.y,b.z,b.type));alert('Deine Welt wurde geladen!')};
 document.getElementById('newBtn').onclick=()=>{if(confirm('Möchtest du eine neue Welt erstellen?'))makeWorld()};
