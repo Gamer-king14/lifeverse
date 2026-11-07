@@ -94,7 +94,7 @@ function isSolidAt(x,z,feet){return blocks.some(b=>{const p=b.position;return b.
 function movePlayer(dx,dz){const nx=player.x+dx;if(!isSolidAt(nx,player.z,player.feet))player.x=nx;const nz=player.z+dz;if(!isSolidAt(player.x,nz,player.feet))player.z=nz;}
 function updatePlayer(dt){const speed=4.2;let dx=0,dz=0;if(keys.w||keys.arrowup)dz-=1;if(keys.s||keys.arrowdown)dz+=1;if(keys.a||keys.arrowleft)dx-=1;if(keys.d||keys.arrowright)dx+=1;const len=Math.hypot(dx,dz)||1;movePlayer(dx/len*speed*dt,dz/len*speed*dt);
 if((keys[' ']||keys.space)&&player.onGround){player.vy=7.2;player.onGround=false;keys[' ']=false;keys.space=false;}
-const oldFeet=player.feet;player.vy-=19*dt;player.feet+=player.vy*dt;let landing=-.53;
+const oldFeet=player.feet;player.vy-=19*dt;player.feet+=player.vy*dt;let landing=-2.55;
 for(const b of blocks){if(b.userData.type==='water')continue;const p=b.position;if(Math.abs(p.x-player.x)<.72&&Math.abs(p.z-player.z)<.72){const top=p.y+.5;if(oldFeet>=top-.08&&player.feet<=top&&player.vy<=0)landing=Math.max(landing,top);}}
 if(player.feet<=landing){player.feet=landing;player.vy=0;player.onGround=true}else player.onGround=false;
 avatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=Math.atan2(dx||0,dz||1);
