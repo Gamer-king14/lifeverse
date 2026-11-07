@@ -142,8 +142,8 @@ const recipes=[
 {id:'planks',name:'🪵 4 Holzbretter',need:{wood:1},out:{planks:4},desc:'1 Holz'},
 {id:'sticks',name:'🪄 4 Stöcke',need:{planks:2},out:{sticks:4},desc:'2 Holzbretter'},
 {id:'workbench',name:'🛠️ Werkbank',need:{planks:4},out:{workbench:1},desc:'4 Holzbretter'},
-{id:'pickaxe',name:'⛏️ Steinspitzhacke',need:{stone:3,sticks:2},out:{pickaxe:1},desc:'3 Stein + 2 Stöcke'}];
-function canCraft(recipe){return Object.entries(recipe.need).every(([k,v])=>(inventory[k]||crafted[k]||0)>=v);}
+{id:'pickaxe',name:'⛏️ Steinspitzhacke',need:{stone:3,sticks:2},requires:{workbench:1},out:{pickaxe:1},desc:'3 Stein + 2 Stöcke · Werkbank nötig'}];
+function canCraft(recipe){return Object.entries(recipe.need).every(([k,v])=>(inventory[k]||crafted[k]||0)>=v)&&Object.entries(recipe.requires||{}).every(([k,v])=>(crafted[k]||0)>=v);}
 function renderCrafting(){const el=document.getElementById('recipes');if(!el)return;el.innerHTML='';recipes.forEach(recipe=>{const b=document.createElement('button');b.className='recipe';b.disabled=!canCraft(recipe);b.innerHTML='<span>'+recipe.name+'<small>'+recipe.desc+' · Besitzt: '+(crafted[recipe.id]||0)+'</small></span><strong>Herstellen</strong>';b.onclick=()=>craftRecipe(recipe);el.appendChild(b);});}
 function craftRecipe(recipe){if(!canCraft(recipe))return;Object.entries(recipe.need).forEach(([k,v])=>{if(inventory[k]!==undefined)inventory[k]-=v;else crafted[k]-=v;});Object.entries(recipe.out).forEach(([k,v])=>crafted[k]=(crafted[k]||0)+v);renderInventory();}
 function setSurvivalAction(action){survivalAction=action;document.getElementById('mineAction').classList.toggle('active',action==='mine');document.getElementById('placeAction').classList.toggle('active',action==='place');}
