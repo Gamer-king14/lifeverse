@@ -25,7 +25,7 @@ button:hover{filter:brightness(1.15)}
 .swatch{width:38px;height:38px;padding:0;border:3px solid #ffffff55}.swatch.active{border-color:white;transform:translateY(-4px)}
 #hint{position:fixed;right:12px;bottom:14px;max-width:260px;font-size:12px;line-height:1.4}
 #status{font-size:12px;color:#b9d3e6;margin-top:4px}
-@media(max-width:600px){#toolbar{top:82px}#toolbar button{padding:9px;font-size:12px}.panel{padding:8px}#hint{display:none}header{font-size:13px}}
+#touchControls button[data-key="space"]{width:104px;font-size:12px}@media(max-width:600px){#toolbar{top:82px}#toolbar button{padding:9px;font-size:12px}.panel{padding:8px}#hint{display:none}header{font-size:13px}}
 </style>
 </head>
 <body>
@@ -47,7 +47,7 @@ button:hover{filter:brightness(1.15)}
  <button id="dayBtn">☀️ Tag / Nacht</button>
  <button id="eraseBtn">🧹 Blöcke entfernen</button>
 </div>
-<div id="touchControls" aria-label="Steuerung"><button data-key="w">▲</button><div><button data-key="a">◀</button><button data-key="s">▼</button><button data-key="d">▶</button></div></div>
+<div id="touchControls" aria-label="Steuerung"><button data-key="w">▲</button><div><button data-key="a">◀</button><button data-key="s">▼</button><button data-key="d">▶</button></div><button data-key="space">SPRINGEN</button></div>
 <div id="bottom" class="panel">
  <span style="font-size:12px">BLOCK:</span>
  <button class="swatch active" data-kind="grass" title="Gras" style="background:#58a94f"></button>
