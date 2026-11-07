@@ -101,6 +101,8 @@ const shirtMat=new THREE.MeshStandardMaterial({color:0x1686b5,roughness:.75});
 const pantsMat=new THREE.MeshStandardMaterial({color:0x263c70,roughness:.85});
 const body=new THREE.Mesh(new THREE.BoxGeometry(.62,.72,.34),shirtMat);body.position.y=1.05;body.castShadow=true;avatar.add(body);
 const head=new THREE.Mesh(new THREE.BoxGeometry(.46,.46,.43),skinMat);head.position.y=1.66;head.castShadow=true;avatar.add(head);
+// Gesicht auf der Vorderseite (+Z): Augen und kleiner Mund machen die Blickrichtung sichtbar.
+const eyeMat=new THREE.MeshStandardMaterial({color:0x17202b,roughness:.45});const eyeGeo=new THREE.BoxGeometry(.065,.075,.025);const eyeL=new THREE.Mesh(eyeGeo,eyeMat),eyeR=new THREE.Mesh(eyeGeo,eyeMat);eyeL.position.set(-.105,1.7,.222);eyeR.position.set(.105,1.7,.222);avatar.add(eyeL,eyeR);const mouth=new THREE.Mesh(new THREE.BoxGeometry(.11,.025,.02),new THREE.MeshStandardMaterial({color:0x9b5148}));mouth.position.set(0,1.57,.224);avatar.add(mouth);
 const legGeo=new THREE.BoxGeometry(.22,.55,.25);
 const legL=new THREE.Mesh(legGeo,pantsMat),legR=new THREE.Mesh(legGeo,pantsMat);legL.position.set(-.17,.275,0);legR.position.set(.17,.275,0);legL.castShadow=legR.castShadow=true;avatar.add(legL,legR);
 const armGeo=new THREE.BoxGeometry(.2,.62,.22);const armL=new THREE.Mesh(armGeo,skinMat),armR=new THREE.Mesh(armGeo,skinMat);armL.position.set(-.42,1.08,0);armR.position.set(.42,1.08,0);avatar.add(armL,armR);armL.castShadow=armR.castShadow=true;
@@ -116,12 +118,12 @@ function updateCamera(){camera.position.set(Math.sin(angle)*radius,Math.max(4,Ma
 function updateFollowCamera(smooth=true){const target=new THREE.Vector3(player.x,player.feet+1.15,player.z);const desired=new THREE.Vector3(player.x+Math.sin(angle)*radius,player.feet+Math.max(3,Math.sin(tilt)*radius),player.z+Math.cos(angle)*radius);if(smooth)camera.position.lerp(desired,.16);else camera.position.copy(desired);camera.lookAt(target);}
 function isSolidAt(x,z,feet){return blocks.some(b=>{const p=b.position;return b.userData.type!=='water'&&Math.abs(p.x-x)<.78&&Math.abs(p.z-z)<.78&&p.y+.5>feet+.08&&feet+1.7>p.y-.5})}
 function movePlayer(dx,dz){const nx=player.x+dx;if(!isSolidAt(nx,player.z,player.feet))player.x=nx;const nz=player.z+dz;if(!isSolidAt(player.x,nz,player.feet))player.z=nz;}
-function updatePlayer(dt){const speed=4.2;let dx=0,dz=0;if(keys.w||keys.arrowup)dz-=1;if(keys.s||keys.arrowdown)dz+=1;if(keys.a||keys.arrowleft)dx-=1;if(keys.d||keys.arrowright)dx+=1;const len=Math.hypot(dx,dz)||1;movePlayer(dx/len*speed*dt,dz/len*speed*dt);
+function updatePlayer(dt){const speed=4.2;let forward=0,side=0;if(keys.w||keys.arrowup)forward+=1;if(keys.s||keys.arrowdown)forward-=1;if(keys.a||keys.arrowleft)side-=1;if(keys.d||keys.arrowright)side+=1;const fx=-Math.sin(angle),fz=-Math.cos(angle),rx=Math.cos(angle),rz=-Math.sin(angle);let dx=fx*forward+rx*side,dz=fz*forward+rz*side;const len=Math.hypot(dx,dz)||1;movePlayer(dx/len*speed*dt,dz/len*speed*dt);
 if((keys[' ']||keys.space)&&player.onGround){player.vy=7.2;player.onGround=false;keys[' ']=false;keys.space=false;}
 const oldFeet=player.feet;player.vy-=19*dt;player.feet+=player.vy*dt;let landing=-2.55;
 for(const b of blocks){if(b.userData.type==='water')continue;const p=b.position;if(Math.abs(p.x-player.x)<.72&&Math.abs(p.z-player.z)<.72){const top=p.y+.5;if(oldFeet>=top-.08&&player.feet<=top&&player.vy<=0)landing=Math.max(landing,top);}}
 if(player.feet<=landing){player.feet=landing;player.vy=0;player.onGround=true}else player.onGround=false;
-avatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=Math.atan2(dx||0,dz||1);
+avatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=angle+Math.PI;
 }
 updateCamera();
 function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;
