@@ -263,7 +263,41 @@ const fillLight=new THREE.DirectionalLight(0xb8dcff,.42);fillLight.position.set(
 const sun=new THREE.DirectionalLight(0xffffff,1.65);sun.position.set(8,20,10);sun.castShadow=false;scene.add(sun);
 sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-35;sun.shadow.camera.right=35;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;sun.shadow.bias=-0.00015;
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x426f3c,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-2.55;ground.receiveShadow=true;scene.add(ground);
-const cubeGeo=new THREE.BoxGeometry(1,1,1),materials={grass:0x58a94f,dirt:0x8b5735,stone:0x89939c,wood:0x9a6738,leaves:0x267b43,water:0x2699d6,workbench:0x8b5a2b},blockMaterials=Object.fromEntries(Object.entries(materials).map(([k,c])=>[k,new THREE.MeshStandardMaterial({color:c,roughness:k==='water'?.28:.9,transparent:k==='water',opacity:k==='water'?.78:1})]));
+const cubeGeo=new THREE.BoxGeometry(1,1,1);
+// Eigene, grob gepixelte 16x16-Texturen im klassischen Voxel-Look.
+function pixelTexture(kind,face){
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=16;
+ const ctx=canvas.getContext('2d'),seedBase=Array.from(kind+face).reduce((a,c)=>a+c.charCodeAt(0),17);
+ let seed=seedBase;const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
+ const palettes={grass:['#477d32','#548e38','#609a3e','#3d702d','#6aa344'],dirt:['#79502f','#865a35','#93623a','#70472a','#9a6b40'],stone:['#777c7c','#858b8a','#969b98','#686e70','#a4a7a1'],wood:['#80502b','#965f32','#aa7040','#704323','#bd8950'],leaves:['#245d2e','#2d7134','#397d38','#1e5128','#478b3e'],water:['#247bb4','#2c8ac4','#399bd0','#1d6da5','#56add8'],workbench:['#79502b','#986337','#b47a43','#684322','#d09a57']};
+ const p=palettes[kind]||palettes.grass;
+ for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+  let color=p[Math.floor(rnd()*p.length)];
+  if(kind==='grass'&&face==='top'&&rnd()>.75)color='#73ad48';
+  if(kind==='grass'&&face==='side')color=y<3?(rnd()>.35?'#4e9137':'#609e40'):p[Math.floor(rnd()*p.length)];
+  if(kind==='stone'&&rnd()>.88)color='#b0b3aa';
+  if(kind==='leaves'&&rnd()>.82)color='#174b25';
+  if(kind==='wood'&&face==='side')color=(x%5===0)?'#684323':(x%5===1?'#bd8950':color);
+  if(kind==='wood'&&face==='end'&&((x-7.5)**2+(y-7.5)**2<18))color=(Math.floor((x+y)/3)%2?'#bd8950':'#704323');
+  if(kind==='workbench'&&face==='top')color=(x<3||x>12||y<3||y>12)?'#684322':(x%4===0||y%4===0?'#d09a57':color);
+  if(kind==='workbench'&&face==='side'&&y<3)color='#d09a57';
+  ctx.fillStyle=color;ctx.fillRect(x,y,1,1);
+ }
+ const tex=new THREE.CanvasTexture(canvas);tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;tex.colorSpace=THREE.SRGBColorSpace;return tex;
+}
+function pixelMat(kind,face){
+ const transparent=kind==='leaves'||kind==='water';
+ return new THREE.MeshStandardMaterial({map:pixelTexture(kind,face),roughness:kind==='water'?.42:1,transparent,opacity:kind==='water'?.88:1,alphaTest:kind==='leaves'?.08:0});
+}
+const blockMaterials={
+ grass:[pixelMat('grass','side'),pixelMat('grass','side'),pixelMat('grass','top'),pixelMat('dirt','side'),pixelMat('grass','side'),pixelMat('grass','side')],
+ dirt:Array.from({length:6},()=>pixelMat('dirt','side')),
+ stone:Array.from({length:6},()=>pixelMat('stone','side')),
+ wood:[pixelMat('wood','side'),pixelMat('wood','side'),pixelMat('wood','end'),pixelMat('wood','end'),pixelMat('wood','side'),pixelMat('wood','side')],
+ leaves:Array.from({length:6},()=>pixelMat('leaves','side')),
+ water:Array.from({length:6},()=>pixelMat('water','side')),
+ workbench:[pixelMat('workbench','side'),pixelMat('workbench','side'),pixelMat('workbench','top'),pixelMat('wood','end'),pixelMat('workbench','side'),pixelMat('workbench','side')]
+};
 let blocks=[],selected='grass',mode='build',night=false,eraseMode=false,survivalAction='mine',firstPerson=false,gamePaused=false,generatedChunks=new Set(),inventory={grass:0,dirt:0,stone:0,wood:0,leaves:0,water:0},crafted={planks:0,sticks:0,workbench:0,pickaxe:0},inventorySlots=Array(36).fill(null),selectedSlot=-1,inventoryOpen=false,inventoryPick=-1,inventoryDragSource=-1,inventoryDragMoved=false,suppressInventoryClick=false,workbenchPlaced=false,player={x:0,z:0,feet:0.5,vy:0,onGround:true};
 // Sichtbare Spielfigur: Füße liegen bei player.feet.
 const avatar=new THREE.Group();
