@@ -317,6 +317,11 @@ const eyeMat=new THREE.MeshStandardMaterial({color:0x17202b,roughness:.45});cons
 const legGeo=new THREE.BoxGeometry(.22,.55,.25);
 const legL=new THREE.Mesh(legGeo,pantsMat),legR=new THREE.Mesh(legGeo,pantsMat);legL.position.set(-.17,.275,0);legR.position.set(.17,.275,0);legL.castShadow=legR.castShadow=true;avatar.add(legL,legR);
 const armGeo=new THREE.BoxGeometry(.2,.62,.22);const armL=new THREE.Mesh(armGeo,skinMat),armR=new THREE.Mesh(armGeo,skinMat);armL.position.set(-.42,1.08,0);armR.position.set(.42,1.08,0);avatar.add(armL,armR);armL.castShadow=armR.castShadow=true;
+// Kleine Details für eine besser erkennbare Spielfigur.
+const neck=new THREE.Mesh(new THREE.BoxGeometry(.18,.16,.18),skinMat);neck.position.set(0,1.43,0);avatar.add(neck);
+const hairMat=new THREE.MeshStandardMaterial({color:0x3a2418,roughness:.95});const hair=new THREE.Mesh(new THREE.BoxGeometry(.49,.16,.46),hairMat);hair.position.set(0,1.9,-.015);avatar.add(hair);
+const handGeo=new THREE.BoxGeometry(.2,.18,.2),handL=new THREE.Mesh(handGeo,skinMat),handR=new THREE.Mesh(handGeo,skinMat);handL.position.set(-.42,.75,0);handR.position.set(.42,.75,0);avatar.add(handL,handR);
+const shoeMat=new THREE.MeshStandardMaterial({color:0x252a31,roughness:.9}),shoeGeo=new THREE.BoxGeometry(.25,.14,.34),shoeL=new THREE.Mesh(shoeGeo,shoeMat),shoeR=new THREE.Mesh(shoeGeo,shoeMat);shoeL.position.set(-.17,.07,.035);shoeR.position.set(.17,.07,.035);avatar.add(shoeL,shoeR);
 scene.add(avatar);
 function addBlock(x,y,z,type){const mesh=new THREE.Mesh(cubeGeo,blockMaterials[type]||blockMaterials.grass);mesh.position.set(x,y,z);mesh.castShadow=false;mesh.receiveShadow=false;mesh.userData={x,y,z,type};scene.add(mesh);blocks.push(mesh);return mesh}
 function removeBlockMesh(mesh){if(!mesh)return;scene.remove(mesh);blocks=blocks.filter(b=>b!==mesh);if(multiplayerActive&&!applyingNetworkBlocks)broadcastNet({type:'blockRemove',x:mesh.userData.x,y:mesh.userData.y,z:mesh.userData.z});}
