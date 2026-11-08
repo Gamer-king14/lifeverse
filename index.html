@@ -339,7 +339,6 @@ const recipes=[
 {id:'leggings',name:'👖 Steinhose',need:{stone:7},requires:{workbench:1},out:{leggings:1},desc:'7 Stein · Rüstungsteil'},
 {id:'boots',name:'🥾 Steinstiefel',need:{stone:4},requires:{workbench:1},out:{boots:1},desc:'4 Stein · Rüstungsteil'}];
 function makeWorld(){clearWorld();inventorySlots=Array(36).fill(null);crafted={planks:0,sticks:0,workbench:0,pickaxe:0};selectedSlot=-1;inventoryPick=-1;renderInventory();player.x=0;player.z=0;player.feet=terrainHeight(0,0)+.5;player.vy=0;ensureChunks();avatar.position.set(0,player.feet,0); }
-makeWorld();
 const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();const outline=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.035,1.035,1.035)),new THREE.LineBasicMaterial({color:0xffe45c,depthTest:true,transparent:true,opacity:.98}));outline.visible=false;outline.renderOrder=5;scene.add(outline);function updateBlockOutline(){raycaster.setFromCamera(new THREE.Vector2(0,0),camera);const hits=raycaster.intersectObjects(blocks,false);if(!hits.length){outline.visible=false;return;}const hit=hits[0];if(mode==='survival'&&hit.point.distanceTo(new THREE.Vector3(player.x,player.feet+1,player.z))>5.2){outline.visible=false;return;}outline.position.copy(hit.object.position);outline.visible=true;}
 let dragging=false,lastX=0,lastY=0,angle=0.7,radius=34,tilt=.65,jumpQueued=false;
 function updateCamera(){camera.position.set(Math.sin(angle)*radius,Math.max(4,Math.sin(tilt)*radius),Math.cos(angle)*radius);camera.lookAt(0,0,0)}
@@ -413,6 +412,9 @@ function updateArmorAppearance(){
  armorLegL.visible=armorLegR.visible=countItem('leggings')>0;
  armorBootL.visible=armorBootR.visible=countItem('boots')>0;
 }
+
+// Welt erst starten, nachdem Hand-Item und Rüstungsdarstellung initialisiert sind.
+makeWorld();
 
 function countItem(type){return inventorySlots.reduce((n,s)=>n+(s&&s.type===type?s.count:0),0);}
 function addItem(type,amount=1){let left=amount;for(const s of inventorySlots){if(s&&s.type===type&&s.count<64){const n=Math.min(64-s.count,left);s.count+=n;left-=n;if(!left)break;}}while(left>0){const i=inventorySlots.findIndex(s=>!s);if(i<0)break;const n=Math.min(64,left);inventorySlots[i]={type,count:n};left-=n;}return left===0;}
