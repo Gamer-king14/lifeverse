@@ -356,7 +356,8 @@ if((jumpQueued||keys[' ']||keys.space)&&player.onGround){player.vy=7.2;playSfx('
 const oldFeet=player.feet;player.vy-=19*dt;player.feet+=player.vy*dt;let landing=-2.55;
 for(const b of blocks){if(b.userData.type==='water')continue;const p=b.position;if(Math.abs(p.x-player.x)<.72&&Math.abs(p.z-player.z)<.72){const top=p.y+.5;if(oldFeet>=top-.08&&player.feet<=top&&player.vy<=0)landing=Math.max(landing,top);}}
 if(player.feet<=landing){player.feet=landing;player.vy=0;player.onGround=true}else player.onGround=false;
-if((Math.abs(forward)+Math.abs(side))>0&&player.onGround&&performance.now()-lastStepSound>390){playSfx('step');lastStepSound=performance.now();}\navatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=angle+Math.PI;
+if((Math.abs(forward)+Math.abs(side))>0&&player.onGround&&performance.now()-lastStepSound>390){playSfx('step');lastStepSound=performance.now();}
+avatar.position.set(player.x,player.feet,player.z);avatar.rotation.y=angle+Math.PI;
 }
 updateCamera();
 function pointer(e){const r=renderer.domElement.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects(blocks);if(hits.length){const h=hits[0],p=h.object.position,n=h.face.normal;
