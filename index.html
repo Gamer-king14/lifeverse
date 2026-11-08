@@ -127,6 +127,11 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 @media(max-width:600px){#playersMenu{align-items:flex-start;padding-top:12vh}}
 /* LIFEVERSE_SUPABASE_SOCIAL_V1 */
 .social-auth{padding:12px;margin:10px 0;background:#111a14;border:1px solid #596b50;border-radius:10px}.social-auth h3{margin:0 0 8px;color:#c9e8ff;font-size:14px}.social-auth input{width:100%;padding:10px;margin:5px 0;background:#0b120f;color:#fff;border:1px solid #64745a;border-radius:7px;font-size:14px}.social-auth button{padding:9px 12px;margin:4px 3px 4px 0}.social-auth .hint{font-size:11px;color:#bdc9b6;line-height:1.4}.social-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.social-row input{flex:1;min-width:120px}.social-results,.social-requests{display:grid;gap:6px;margin:7px 0}.social-person{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px;background:#202c22;border:1px solid #52624c;border-radius:7px;font-size:12px}.social-person button{margin:0;padding:6px 9px;font-size:11px}.social-friends{display:grid;gap:6px;margin:8px 0}.social-friend{width:100%;text-align:left;background:#18304a!important;border:1px solid #438ac0!important}.social-friend.active{outline:2px solid #8ed5ff}.dm-box{margin-top:10px;padding-top:10px;border-top:1px solid #52624c}.dm-log{height:190px;overflow:auto;padding:8px;background:#090e0b;border:1px solid #52624c;border-radius:8px;font-size:12px}.dm-line{margin:0 0 8px;overflow-wrap:anywhere}.dm-line b{color:#8ed5ff}.social-muted{font-size:11px;color:#b5c0ad}
+#worldInviteMenu{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;padding:16px;background:#050a10d9;backdrop-filter:blur(8px)}
+#worldInviteMenu.visible{display:flex}.world-invite-card{width:min(430px,94vw);max-height:86vh;overflow:auto;padding:20px;background:linear-gradient(145deg,#263d4d,#111d27);border:1px solid #64c9f2;border-radius:14px;box-shadow:0 20px 70px #000c}
+.world-invite-card h2{margin:0 0 8px;font-size:21px;color:#e6f7ff}.world-invite-card p{font-size:12px;line-height:1.5;color:#c2dce8}
+.world-invite-card button{padding:9px 12px}.world-invite-list{display:grid;gap:7px;margin:12px 0}.world-invite-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px;background:#142a38;border:1px solid #3e718c;border-radius:8px;font-size:13px}.world-invite-row button{margin:0}
+.world-invite-status{font-size:12px;color:#9ce4ff;min-height:18px}
 </style>
 </head>
 <body>
@@ -197,6 +202,8 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 <div id="accountIdentity" class="hint"></div><button id="accountLogout">Abmelden</button>
 <div class="social-title" style="margin-top:10px">🔎 SPIELER SUCHEN</div><div class="social-row"><input id="playerSearch" maxlength="18" placeholder="Spielernamen suchen"><button id="playerSearchBtn">Suchen</button></div><div id="playerSearchResults" class="social-results"></div>
 <div class="social-title" style="margin-top:10px">📨 ANFRAGEN</div><div id="incomingRequests" class="social-requests"><span class="social-muted">Keine offenen Anfragen.</span></div>
+<div class="social-title" style="margin-top:12px">🌍 WELTEINLADUNGEN</div><div id="worldInvitations" class="social-requests"><span class="social-muted">Keine Welteinladungen.</span></div>
+<button id="openWorldInviteMenu" style="width:100%;margin:8px 0;background:linear-gradient(135deg,#176b8d,#17405c);border-color:#67d7ff">🌍 FREUNDE IN MEINE WELT EINLADEN</button>
 <div class="social-title" style="margin-top:10px">🧑‍🤝‍🧑 MEINE FREUNDE</div><div id="accountFriends" class="social-friends"><span class="social-muted">Noch keine Freunde.</span></div>
 <div class="dm-box"><div class="social-title" id="dmTitle">💬 PRIVATER CHAT</div><div id="dmLog" class="dm-log">Wähle einen Freund aus deiner Liste.</div><div class="chat-compose"><input id="dmInput" maxlength="500" placeholder="Private Nachricht …" disabled><button id="dmSend" disabled>Senden</button></div></div>
 </div><div id="accountStatus" class="hint" aria-live="polite">Verbindung wird vorbereitet …</div></section><div class="social-panel">
@@ -209,6 +216,7 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   <div id="multiStatus">Noch nicht verbunden.</div>
  </div>
 </div>
+<div id="worldInviteMenu" role="dialog" aria-modal="true" aria-label="Freunde in deine Welt einladen"><div class="world-invite-card"><h2>🌍 FREUNDE EINLADEN</h2><p>Wähle einen Freund aus. Wenn du noch keinen Raum geöffnet hast, wird automatisch ein Raum für deine aktuelle Welt erstellt.</p><div id="worldInviteFriends" class="world-invite-list"><span class="social-muted">Lade Freundesliste …</span></div><div id="worldInviteStatus" class="world-invite-status"></div><button id="closeWorldInviteMenu" style="width:100%;margin-top:8px">✖ SCHLIESSEN</button></div></div>
 <div id="playersMenu" role="dialog" aria-modal="true" aria-label="Spieler in deiner Welt"><div class="players-card"><div class="players-head"><h2>👥 SPIELER IN DER WELT</h2><button id="playersClose">✖</button></div><div id="playersCount">1 Spieler in deiner Welt</div><div id="playersRoster"></div></div></div>
 <div id="game"></div>
 <header>
@@ -448,7 +456,16 @@ function craftRecipe(recipe){if(!canCraft(recipe))return;Object.entries(recipe.n
 // Prozedurale Soundeffekte – Audio wird erst nach echter Nutzeraktion gestartet.
 let lifeAudio=null,lastStepSound=0,audioReady=false;
 async function unlockGameAudio(){try{const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return false;if(!lifeAudio)lifeAudio=new AudioCtx();if(lifeAudio.state==='suspended')await lifeAudio.resume();audioReady=lifeAudio.state==='running';return audioReady;}catch(e){console.debug('Audio nicht verfügbar',e);return false;}}
-function playSfx(kind){const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;if(!lifeAudio)lifeAudio=new AudioCtx();const ctx=lifeAudio;const schedule=()=>{if(ctx.state!=='running')return;try{const now=ctx.currentTime,presets={mine:{freq:145,end:72,duration:.15,wave:'square',gain:.12},place:{freq:190,end:105,duration:.18,wave:'triangle',gain:.11},jump:{freq:230,end:430,duration:.22,wave:'sine',gain:.10},step:{freq:95,end:58,duration:.09,wave:'triangle',gain:.055},test:{freq:440,end:660,duration:.32,wave:'sine',gain:.14}};const p=presets[kind]||presets.mine,osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=p.wave;osc.frequency.setValueAtTime(p.freq,now);osc.frequency.exponentialRampToValueAtTime(Math.max(35,p.end),now+p.duration);gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(p.gain,now+.018);gain.gain.exponentialRampToValueAtTime(.0001,now+p.duration);osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+p.duration+.025);}catch(e){console.debug('Soundeffekt fehlgeschlagen',e);}};if(ctx.state==='running')schedule();else ctx.resume().then(schedule).catch(e=>console.debug('Audio konnte nicht aktiviert werden',e));}
+function playSfx(kind){
+ const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;if(!lifeAudio)lifeAudio=new AudioCtx();const ctx=lifeAudio;
+ const schedule=()=>{if(ctx.state!=='running')return;try{
+  const now=ctx.currentTime,presets={mine:{freq:118,end:48,duration:.19,wave:'square',gain:.095,second:1.48,filter:900},place:{freq:165,end:92,duration:.2,wave:'triangle',gain:.085,second:2.02,filter:1250},jump:{freq:185,end:520,duration:.26,wave:'sine',gain:.09,second:1.5,filter:1600},step:{freq:78,end:42,duration:.105,wave:'triangle',gain:.035,second:1.2,filter:420},test:{freq:440,end:660,duration:.38,wave:'sine',gain:.12,second:1.5,filter:2200}},p=presets[kind]||presets.mine;
+  const master=ctx.createGain(),filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.setValueAtTime(p.filter,now);filter.frequency.exponentialRampToValueAtTime(Math.max(180,p.filter*.55),now+p.duration);master.gain.setValueAtTime(1,now);master.connect(filter);filter.connect(ctx.destination);
+  [1,p.second].forEach((ratio,index)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=index?p.wave:'sine';osc.frequency.setValueAtTime(p.freq*ratio,now);osc.frequency.exponentialRampToValueAtTime(Math.max(30,p.end*ratio),now+p.duration);gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(p.gain*(index?.38:1),now+.012);gain.gain.exponentialRampToValueAtTime(.0001,now+p.duration);osc.connect(gain);gain.connect(master);osc.start(now);osc.stop(now+p.duration+.03);});
+  if(kind==='mine'||kind==='place'||kind==='step'){const length=Math.floor(ctx.sampleRate*.055),buffer=ctx.createBuffer(1,length,ctx.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);const noise=ctx.createBufferSource(),ng=ctx.createGain(),nf=ctx.createBiquadFilter();noise.buffer=buffer;nf.type='lowpass';nf.frequency.value=kind==='mine'?700:kind==='place'?1100:260;ng.gain.setValueAtTime(kind==='step'?.025:.045,now);ng.gain.exponentialRampToValueAtTime(.0001,now+.055);noise.connect(nf);nf.connect(ng);ng.connect(ctx.destination);noise.start(now);noise.stop(now+.06);}
+ }catch(e){console.debug('Soundeffekt fehlgeschlagen',e);}};
+ if(ctx.state==='running')schedule();else ctx.resume().then(schedule).catch(e=>console.debug('Audio konnte nicht aktiviert werden',e));
+}
 document.addEventListener('pointerdown',()=>{unlockGameAudio();},{once:true});document.addEventListener('keydown',()=>{unlockGameAudio();},{once:true});
 function interactAtCenter(action){const center=new THREE.Vector2(0,0);raycaster.setFromCamera(center,camera);const hits=raycaster.intersectObjects(blocks);if(!hits.length)return;const h=hits[0];if(h.point.distanceTo(new THREE.Vector3(player.x,player.feet+1,player.z))>5.2)return;const p=h.object.position,n=h.face.normal;if(action==='mine'){const type=h.object.userData.type;if(!addItem(type,1)){document.getElementById('status').textContent='Dein Inventar ist voll!';return;}removeBlockMesh(h.object);playSfx('mine');renderInventory();}else{const slot=selectedSlot>=0?inventorySlots[selectedSlot]:null;if(!slot){document.getElementById('status').textContent='Wähle zuerst einen Gegenstand in deiner Hotbar.';return;}const type=slot.type;if(!['grass','dirt','stone','wood','leaves','water','workbench'].includes(type))return;const x=Math.round(p.x+n.x),y=Math.round(p.y+n.y),z=Math.round(p.z+n.z);if(y<12&&!blocks.some(b=>b.position.x===x&&b.position.y===y&&b.position.z===z)){addBlock(x,y,z,type);broadcastNet({type:'blockAdd',x,y,z,blockType:type});removeItem(type,1);playSfx('place');renderInventory();}}}
 function setSurvivalAction(action){survivalAction=action;document.getElementById('mineAction').classList.toggle('active',action==='mine');document.getElementById('placeAction').classList.toggle('active',action==='place');}
@@ -498,7 +515,7 @@ function setupMultiplayerConnection(conn,sendSnapshot=false){if(multiplayerConne
  else if(data.type==='blockAdd'){applyingNetworkBlocks=true;addNetworkBlock(data.x,data.y,data.z,data.blockType);applyingNetworkBlocks=false;}
  else if(data.type==='blockRemove'){applyingNetworkBlocks=true;const b=blocks.find(v=>v.userData.x===data.x&&v.userData.y===data.y&&v.userData.z===data.z);if(b){scene.remove(b);blocks=blocks.filter(v=>v!==b);}applyingNetworkBlocks=false;}
  });conn.on('close',()=>{multiplayerConnections=multiplayerConnections.filter(c=>c!==conn);removeRemoteAvatar(conn.peer);renderFriendList();renderPlayersMenu();if(!multiplayerConnections.length){multiplayerActive=false;setMultiStatus('Verbindung getrennt.');}});conn.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Bitte erneut versuchen.')));}
-function startHosting(){hostingRoom=true;if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,id)=>removeRemoteAvatar(id));multiplayerActive=false;setMultiStatus('Erstelle Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',id=>{document.getElementById('roomArea').style.display='block';document.getElementById('roomCode').textContent=id;setMultiStatus('Raum bereit! Teile den Code mit deinem Freund.');});multiplayerPeer.on('connection',conn=>setupMultiplayerConnection(conn,true));multiplayerPeer.on('error',e=>setMultiStatus('Peer-Fehler: '+(e.message||'Verbindung nicht möglich.')));}
+function startHosting(){hostingRoom=true;if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,id)=>removeRemoteAvatar(id));multiplayerActive=false;setMultiStatus('Erstelle Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',id=>{document.getElementById('roomArea').style.display='block';document.getElementById('roomCode').textContent=id;setMultiStatus('Raum bereit! Deine Welt ist bereit für Einladungen.');if(pendingWorldInvite){const p=pendingWorldInvite;pendingWorldInvite=null;sendWorldInvite(p,id);}});multiplayerPeer.on('connection',conn=>setupMultiplayerConnection(conn,true));multiplayerPeer.on('error',e=>setMultiStatus('Peer-Fehler: '+(e.message||'Verbindung nicht möglich.')));}
 function joinRoom(){hostingRoom=false;const id=document.getElementById('joinCode').value.trim();if(!id){setMultiStatus('Bitte gib zuerst einen Raumcode ein.');return;}if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,key)=>removeRemoteAvatar(key));multiplayerActive=false;setMultiStatus('Verbinde mit Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',()=>{const conn=multiplayerPeer.connect(id,{reliable:true,metadata:{username:getPlayerName()}});setupMultiplayerConnection(conn,false);});multiplayerPeer.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Code prüfen.')));}
 
 const nameInput=document.getElementById('playerNameInput');
@@ -557,16 +574,40 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
   const box=$('playerSearchResults');box.innerHTML='';if(e){box.textContent=error(e);return;}if(!data?.length){box.textContent='Keine Spieler gefunden.';return;}
   data.forEach(p=>{const row=document.createElement('div');row.className='social-person';const n=document.createElement('span');n.textContent=p.username;const b=document.createElement('button');b.textContent='＋ Hinzufügen';b.onclick=async()=>{b.disabled=true;const {error:e}=await db.rpc('send_friend_request',{target:p.id});say(e?error(e):'Anfrage an '+p.username+' gesendet.');if(e)b.disabled=false;};row.append(n,b);box.append(row);});
  }
+ let pendingWorldInvite=null;
+ async function sendWorldInvite(p,roomId){
+  if(!user||!p?.id||!roomId){$('worldInviteStatus').textContent='Einladung konnte nicht vorbereitet werden.';return;}
+  const payload={room:roomId,host:localStorage.getItem('lifeverse-player-name')||'Spieler',sent:Date.now()};
+  const {error:e}=await db.from('messages').insert({sender:user.id,receiver:p.id,content:'LV_WORLD_INVITE:'+JSON.stringify(payload)});
+  if(e){$('worldInviteStatus').textContent='Einladung fehlgeschlagen: '+error(e);say('Welteinladung nicht gesendet: '+error(e));return;}
+  $('worldInviteStatus').textContent='Einladung an '+p.username+' gesendet ✓';say('Welteinladung an '+p.username+' gesendet.');
+ }
+ async function inviteFriendToWorld(p){
+  if(!user){$('worldInviteStatus').textContent='Bitte melde dich zuerst an.';return;}
+  $('worldInviteStatus').textContent='Bereite deine Welt vor …';
+  if(hostingRoom&&multiplayerPeer&&multiplayerPeer.id){await sendWorldInvite(p,multiplayerPeer.id);return;}
+  pendingWorldInvite=p;startHosting();
+ }
  async function requests(){
-  const box=$('incomingRequests');const {data,error:e}=await db.from('friend_requests').select('id,sender,profiles!friend_requests_sender_fkey(username)').eq('receiver',user.id).eq('status','pending').order('created_at',{ascending:false});
-  box.innerHTML='';if(e){box.textContent=error(e);return;}if(!data?.length){box.textContent='Keine offenen Anfragen.';return;}
-  data.forEach(r=>{const row=document.createElement('div');row.className='social-person';const n=document.createElement('span');n.textContent=r.profiles?.username||'Spieler';const b=document.createElement('button');b.textContent='Annehmen';b.onclick=async()=>{b.disabled=true;const {error:e}=await db.rpc('accept_friend_request',{request_id:r.id});say(e?error(e):'Freund hinzugefügt!');await requests();await friends();};row.append(n,b);box.append(row);});
+  const box=$('incomingRequests'),worldBox=$('worldInvitations');
+  const {data,error:e}=await db.from('friend_requests').select('id,sender,profiles!friend_requests_sender_fkey(username)').eq('receiver',user.id).eq('status','pending').order('created_at',{ascending:false});
+  box.innerHTML='';if(e){box.textContent=error(e);}else if(!data?.length){box.textContent='Keine offenen Freundschaftsanfragen.';}else{
+   data.forEach(r=>{const row=document.createElement('div');row.className='social-person';const n=document.createElement('span');n.textContent=r.profiles?.username||'Spieler';const b=document.createElement('button');b.textContent='Annehmen';b.onclick=async()=>{b.disabled=true;const {error:e}=await db.rpc('accept_friend_request',{request_id:r.id});say(e?error(e):'Freund hinzugefügt!');await requests();await friends();};row.append(n,b);box.append(row);});
+  }
+  const {data:invites,error:ie}=await db.from('messages').select('id,sender,content,created_at').eq('receiver',user.id).like('content','LV_WORLD_INVITE:%').order('created_at',{ascending:false}).limit(20);
+  worldBox.innerHTML='';if(ie){worldBox.textContent='Einladungen konnten nicht geladen werden: '+error(ie);return;}
+  const valid=(invites||[]).map(m=>{try{return {...m,payload:JSON.parse(m.content.slice('LV_WORLD_INVITE:'.length))};}catch(e){return null;}}).filter(m=>m&&typeof m.payload.room==='string'&&m.payload.room.length>2&&Date.now()-(Number(m.payload.sent)||0)<7*24*60*60*1000);
+  if(!valid.length){worldBox.textContent='Keine Welteinladungen.';return;}
+  const ids=[...new Set(valid.map(v=>v.sender))];const {data:profiles}=await db.from('profiles').select('id,username').in('id',ids);const names=new Map((profiles||[]).map(p=>[p.id,p.username]));
+  valid.forEach(inv=>{const row=document.createElement('div');row.className='social-person';const n=document.createElement('span');n.textContent='🌍 '+(names.get(inv.sender)||inv.payload.host||'Freund')+' lädt dich ein';const b=document.createElement('button');b.textContent='Annehmen';b.onclick=()=>{document.getElementById('joinCode').value=inv.payload.room;document.getElementById('worldInviteMenu').classList.remove('visible');document.getElementById('multiMenu').classList.add('visible');setMultiStatus('Trete der Welt bei …');joinRoom();};row.append(n,b);worldBox.append(row);});
  }
  async function friends(){
-  const box=$('accountFriends');const {data,error:e}=await db.from('friendships').select('friend_id').eq('user_id',user.id);box.innerHTML='';
-  if(e){box.textContent=error(e);return;}if(!data?.length){box.textContent='Noch keine Freunde. Suche oben nach Spielern!';return;}
-  const {data:ps,error:pe}=await db.from('profiles').select('id,username').in('id',data.map(x=>x.friend_id)).order('username');if(pe){box.textContent=error(pe);return;}
-  (ps||[]).forEach(p=>{const b=document.createElement('button');b.className='social-friend'+(friend===p.id?' active':'');b.textContent='🟢 '+p.username;b.onclick=()=>openChat(p);box.append(b);});
+  const box=$('accountFriends'),inviteBox=$('worldInviteFriends');const {data,error:e}=await db.from('friendships').select('friend_id').eq('user_id',user.id);box.innerHTML='';if(inviteBox)inviteBox.innerHTML='';
+  if(e){box.textContent=error(e);if(inviteBox)inviteBox.textContent=error(e);return;}if(!data?.length){box.textContent='Noch keine Freunde. Suche oben nach Spielern!';if(inviteBox)inviteBox.textContent='Füge zuerst Freunde hinzu.';return;}
+  const {data:ps,error:pe}=await db.from('profiles').select('id,username').in('id',data.map(x=>x.friend_id)).order('username');if(pe){box.textContent=error(pe);if(inviteBox)inviteBox.textContent=error(pe);return;}
+  (ps||[]).forEach(p=>{const b=document.createElement('button');b.className='social-friend'+(friend===p.id?' active':'');b.textContent='🟢 '+p.username;b.onclick=()=>openChat(p);box.append(b);
+   if(inviteBox){const row=document.createElement('div');row.className='world-invite-row';const name=document.createElement('span');name.textContent='🧑 '+p.username;const invite=document.createElement('button');invite.textContent='Einladen';invite.onclick=()=>inviteFriendToWorld(p);row.append(name,invite);inviteBox.append(row);}
+  });
  }
  async function openChat(p){
   friend=p.id;$('dmTitle').textContent='💬 CHAT MIT '+p.username;$('dmInput').disabled=false;$('dmSend').disabled=false;await friends();
@@ -590,8 +631,11 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
   if(!window.supabase?.createClient){say('Supabase-Bibliothek nicht geladen. Bitte Seite neu laden.');return;}
   db=window.supabase.createClient(URL,KEY);
   $('accountRegister').onclick=register;$('accountLogin').onclick=login;$('accountLogout').onclick=logout;$('playerSearchBtn').onclick=search;
+  $('openWorldInviteMenu').onclick=()=>{$('worldInviteMenu').classList.add('visible');$('worldInviteStatus').textContent=hostingRoom?'Deine Welt ist bereit.':'Beim Einladen wird deine Welt geöffnet.';friends();};
+  $('closeWorldInviteMenu').onclick=()=>$('worldInviteMenu').classList.remove('visible');
+  $('worldInviteMenu').addEventListener('click',e=>{if(e.target.id==='worldInviteMenu')$('worldInviteMenu').classList.remove('visible');});
   $('playerSearch').addEventListener('keydown',e=>{if(e.key==='Enter')search();});$('dmSend').onclick=send;$('dmInput').addEventListener('keydown',e=>{if(e.key==='Enter')send();});
-  db.auth.onAuthStateChange(()=>setTimeout(()=>refresh().catch(e=>say(error(e))),0));refresh().catch(e=>say(error(e)));
+  db.auth.onAuthStateChange(()=>setTimeout(()=>refresh().catch(e=>say(error(e))),0));refresh().catch(e=>say(error(e)));setInterval(()=>{if(user)requests().catch(e=>say(error(e)));},12000);
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
