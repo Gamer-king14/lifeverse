@@ -415,6 +415,7 @@ document.getElementById('switchCreative').onclick=()=>{saveCurrentWorld(false);e
 document.getElementById('leaveGame').onclick=()=>{saveCurrentWorld(false);togglePause(false);activeSaveMode=null;document.getElementById('modeSelect').classList.add('visible');};
 bindModeCard('chooseSurvival','survival');bindModeCard('chooseCreative','creative');
 setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.textContent='Fertig! Wähle deinen Spielmodus.';setTimeout(()=>{document.getElementById('loader').classList.add('hide');document.getElementById('modeSelect').classList.add('visible');},450)},1500);
+</script>
 <script>
 /* LIFEVERSE_SUPABASE_SOCIAL_V1 */
 (()=>{
@@ -483,6 +484,5 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
-</script>
 </script>
 </body></html>
