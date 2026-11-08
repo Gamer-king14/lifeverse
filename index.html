@@ -568,7 +568,20 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
   say('Konto wird erstellt …');const {data,error:e}=await db.auth.signUp({email,password,options:{data:{username}}});
   if(e){say(error(e));return;}if(data.session){await refresh();say('Konto erstellt!');}else say('Bitte bestätige zuerst deine E-Mail über den Link in deinem Postfach. Danach hier anmelden.');
  }
- async function login(){const {error:e}=await db.auth.signInWithPassword({email:$('accountEmail').value.trim(),password:$('accountPassword').value});if(e){say(error(e));return;}await refresh();}
+ async function login(){
+   const {data,error:e}=await db.auth.signInWithPassword({email:$('accountEmail').value.trim(),password:$('accountPassword').value});
+   if(e){say(error(e));return;}
+   await refresh();
+   say('Erfolgreich eingeloggt! Dein Abenteuer beginnt. ✨ Mail wird gesendet …');
+   try{
+    const {error:mailError}=await db.functions.invoke('login-welcome-email');
+    if(mailError)throw mailError;
+    say('Du bist jetzt eingeloggt – dein Abenteuer beginnt! ✨ Willkommens-Mail wurde gesendet. 📧');
+   }catch(mailError){
+    console.error('LIFEVERSE welcome email:',mailError);
+    say('Login erfolgreich! ✨ Der Mailversand ist noch nicht eingerichtet. Bitte später erneut versuchen.');
+   }
+  }
  async function logout(){await db.auth.signOut();await refresh();}
  async function search(){
   const q=$('playerSearch').value.trim();if(q.length<2){$('playerSearchResults').textContent='Mindestens 2 Zeichen eingeben.';return;}
