@@ -150,6 +150,7 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   <h1 class="mode-title">WÄHLE DEINEN MODUS</h1>
   <p class="mode-intro">Wie möchtest du deine Welt erleben?</p>
   <div class="profile-bar"><label for="playerNameInput">DEIN SPIELERNAME</label><input id="playerNameInput" maxlength="18" autocomplete="nickname" placeholder="Dein Name"></div>
+  <button class="lobby-button" id="startScreenServers">🌐 SERVER ERSTELLEN / BEITRETEN</button>
   <button class="lobby-button" id="openLobbyChat">💬 FREUNDE & CHAT ÖFFNEN</button>
   <div class="mode-cards">
    <article class="mode-card survival" id="chooseSurvival" role="button" tabindex="0" aria-label="Survival starten">
@@ -615,6 +616,7 @@ function joinRoom(){hostingRoom=false;const id=document.getElementById('joinCode
 const nameInput=document.getElementById('playerNameInput');
 if(nameInput){nameInput.value=getPlayerName()==='Spieler'?'':getPlayerName();nameInput.addEventListener('input',()=>localStorage.setItem('lifeverse-player-name',nameInput.value.trim().slice(0,18)||'Spieler'));}
 document.getElementById('openLobbyChat').onclick=()=>document.getElementById('multiMenu').classList.add('visible');
+document.getElementById('startScreenServers').onclick=()=>{document.getElementById('multiMenu').classList.add('visible');setMultiStatus('Erstelle einen Server oder tritt einem Freund bei.');};
 document.getElementById('playersOpen').onclick=()=>{renderPlayersMenu();document.getElementById('playersMenu').classList.add('visible');};
 document.getElementById('playersClose').onclick=()=>document.getElementById('playersMenu').classList.remove('visible');
 document.getElementById('playersMenu').addEventListener('click',e=>{if(e.target.id==='playersMenu')document.getElementById('playersMenu').classList.remove('visible');});
