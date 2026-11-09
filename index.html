@@ -53,6 +53,8 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 #hotbar{background:#171d18ed;border:2px solid #aaa88d;border-radius:7px;box-shadow:0 5px 18px #000b}.hot-slot{background:linear-gradient(145deg,#454b3d,#252b23);border:2px solid #8e927c}.hot-slot.selected{border-color:#e8d58b;background:#62684d}.invslot{background:linear-gradient(145deg,#454b3d,#252b23);border-color:#777e69}
 #miniMap{border-color:#b3b69a;background:#172019}#joystick,#dpad button,#jumpBtn{background:#283329e8;border-color:#aab293}#stickKnob{background:linear-gradient(145deg,#c6c8ad,#66765a);border-color:#e2e2ca}#actionButtons button{background:#293329ed;border-color:#aab293}#bottom{background:#20271fef}
 
+/* Server direkt auf dem Startbildschirm */
+#startServerPanel{max-width:700px;margin:0 auto 22px;padding:15px 18px;background:linear-gradient(145deg,#1b2b24ed,#101a17f5);border:1px solid #67bfff;border-radius:12px;box-shadow:0 10px 28px #0008;text-align:center}#startServerPanel h2{margin:0 0 5px;color:#e9f4e8;font-size:17px;letter-spacing:2px}#startServerPanel p{margin:0 0 12px;color:#c9d5c7;font-size:12px}#startServerPanel>button,#startServerPanel .server-join button,#startServerPanel #copyRoom{padding:10px 15px;background:linear-gradient(145deg,#245b83,#15334c);border:1px solid #61bfff;border-radius:8px;font-weight:900}#startServerPanel #roomArea{max-width:360px;margin:12px auto;padding:10px;background:#0d1713;border-radius:8px}.server-code-label{font-size:11px;color:#c9cebd;margin-bottom:7px}#startServerPanel #roomCode{padding:10px;background:#101710;border:1px dashed #a9ad8c;border-radius:8px;font-size:18px;font-weight:900;letter-spacing:2px;overflow-wrap:anywhere}#startServerPanel #copyRoom{width:100%;margin-top:8px}.server-join{display:flex;gap:8px;max-width:480px;margin:12px auto 0}.server-join input{flex:1;min-width:0;padding:10px;background:#0d140f;color:#fff;border:1px solid #78866a;border-radius:7px}#startServerPanel #multiStatus{font-size:12px;color:#c5d29e;min-height:18px;margin-top:9px}@media(max-width:600px){.server-join{flex-direction:column}}
 /* Spielmodus-Auswahl */
 #modeSelect{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at 50% 20%,#414b37ee,#111711f5 72%);overflow:auto}
 #modeSelect.visible{display:flex}
@@ -150,8 +152,16 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   <h1 class="mode-title">WÄHLE DEINEN MODUS</h1>
   <p class="mode-intro">Wie möchtest du deine Welt erleben?</p>
   <div class="profile-bar"><label for="playerNameInput">DEIN SPIELERNAME</label><input id="playerNameInput" maxlength="18" autocomplete="nickname" placeholder="Dein Name"></div>
-  <button class="lobby-button" id="startScreenServers">🌐 SERVER ERSTELLEN / BEITRETEN</button>
+  
   <button class="lobby-button" id="openLobbyChat">💬 FREUNDE & CHAT ÖFFNEN</button>
+  <section id="startServerPanel" aria-label="Server erstellen oder beitreten">
+   <h2>🌐 MULTIPLAYER-SERVER</h2>
+   <p>Erstelle einen Server für deine Welt oder tritt mit einem Freund per Code bei.</p>
+   <button id="hostRoom">🌍 SERVER ERSTELLEN</button>
+   <div id="roomArea" style="display:none"><div class="server-code-label">DEIN SERVER-CODE</div><div id="roomCode">—</div><button id="copyRoom">📋 CODE KOPIEREN</button></div>
+   <div class="server-join"><input id="joinCode" autocomplete="off" autocapitalize="none" placeholder="Servercode eingeben"><button id="joinRoom">🔗 BEITRETEN</button></div>
+   <div id="multiStatus">Noch nicht verbunden.</div>
+  </section>
   <div class="mode-cards">
    <article class="mode-card survival" id="chooseSurvival" role="button" tabindex="0" aria-label="Survival starten">
     <img src="https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1100&q=85" alt="Dichter, geheimnisvoller grüner Wald">
@@ -184,10 +194,6 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   <h2>👥 LIFEVERSE MULTIPLAYER</h2>
   <p>Erstelle einen Raum und teile den Code mit deinem Freund. Oder gib den Code deines Freundes ein, um beizutreten.</p>
   <div class="multi-actions">
-   <button id="hostRoom">🌍 RAUM ERSTELLEN</button>
-   <div id="roomArea" style="display:none"><div style="font-size:11px;color:#c9cebd;margin:8px 0">DEIN RAUMCODE</div><div id="roomCode">—</div><button id="copyRoom" style="width:100%;margin-top:7px">📋 CODE KOPIEREN</button></div>
-   <input id="joinCode" autocomplete="off" autocapitalize="none" placeholder="Raumcode eingeben">
-   <button id="joinRoom">🔗 RAUM BEITRETEN</button>
    <button id="closeMulti">✖ SCHLIESSEN</button>
   </div>
   <section class="social-auth" id="accountPanel">
@@ -214,7 +220,6 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
    <div id="chatLog" class="chat-log" aria-live="polite"><div style="color:#aeb6a7">Noch keine Nachrichten. Verbinde dich mit einem Freund!</div></div>
    <div class="chat-compose"><input id="chatInput" maxlength="180" autocomplete="off" placeholder="Nachricht schreiben …"><button id="chatSend">Senden</button></div>
   </div>
-  <div id="multiStatus">Noch nicht verbunden.</div>
  </div>
 </div>
 <div id="worldInviteMenu" role="dialog" aria-modal="true" aria-label="Freunde in deine Welt einladen"><div class="world-invite-card"><h2>🌍 FREUNDE EINLADEN</h2><p>Wähle einen Freund aus. Wenn du noch keinen Raum geöffnet hast, wird automatisch ein Raum für deine aktuelle Welt erstellt.</p><div id="worldInviteFriends" class="world-invite-list"><span class="social-muted">Lade Freundesliste …</span></div><div id="worldInviteStatus" class="world-invite-status"></div><button id="closeWorldInviteMenu" style="width:100%;margin-top:8px">✖ SCHLIESSEN</button></div></div>
@@ -616,7 +621,7 @@ function joinRoom(){hostingRoom=false;const id=document.getElementById('joinCode
 const nameInput=document.getElementById('playerNameInput');
 if(nameInput){nameInput.value=getPlayerName()==='Spieler'?'':getPlayerName();nameInput.addEventListener('input',()=>localStorage.setItem('lifeverse-player-name',nameInput.value.trim().slice(0,18)||'Spieler'));}
 document.getElementById('openLobbyChat').onclick=()=>document.getElementById('multiMenu').classList.add('visible');
-document.getElementById('startScreenServers').onclick=()=>{document.getElementById('multiMenu').classList.add('visible');setMultiStatus('Erstelle einen Server oder tritt einem Freund bei.');};
+
 document.getElementById('playersOpen').onclick=()=>{renderPlayersMenu();document.getElementById('playersMenu').classList.add('visible');};
 document.getElementById('playersClose').onclick=()=>document.getElementById('playersMenu').classList.remove('visible');
 document.getElementById('playersMenu').addEventListener('click',e=>{if(e.target.id==='playersMenu')document.getElementById('playersMenu').classList.remove('visible');});
