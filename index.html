@@ -433,9 +433,13 @@ function createMob(type,x,z){
 }
 function spawnMobs(){
  if(mobs.length>=8||!activeSaveMode)return;
- const a=Math.random()*Math.PI*2,r=10+Math.random()*13,x=Math.round(player.x+Math.cos(a)*r),z=Math.round(player.z+Math.sin(a)*r);
+ const angle=Math.random()*Math.PI*2,distance=10+Math.random()*13;
+ const x=Math.round(player.x+Math.cos(angle)*distance),z=Math.round(player.z+Math.sin(angle)*distance);
  if(riverDistance(x,z)<3.2||Math.hypot(x-player.x,z-player.z)<8)return;
- const types=mode==='survival'?['pig','cofunction updateMobs(dt){
+ const types=mode==='survival'?['pig','cow','sheep','zombie']:['pig','cow','sheep'];
+ createMob(types[Math.floor(Math.random()*types.length)],x,z);
+}
+function updateMobs(dt){
  if(!activeSaveMode||gamePaused)return;
  mobSpawnClock+=dt;mobDamageClock=Math.max(0,mobDamageClock-dt);
  if(mobSpawnClock>7){mobSpawnClock=0;spawnMobs();}
@@ -444,22 +448,27 @@ function spawnMobs(){
   const oldX=g.position.x,oldZ=g.position.z;
   if(m.type==='zombie'&&mode==='survival'&&dist<13){
    m.dir=Math.atan2(dx,dz);
-   if(dist<.9){if(m.attack<=0&&mobDamageClock<=0){playerHealth=Math.max(0,playerHealth-2);renderSurvivalBars();mobDamageClock=1.1;m.attack=1.1;const hud=document.getElementById('mobHud');if(hud)hud.textContent='❤️ Leben: '+playerHealth+'/20 · ⚠️ Zombie-Angriff!';if(playerHealth===0){playerHealth=20;playerHunger=20;renderSurvivalBars();player.x=0;player.z=0;player.feet=.5;document.getElementById('status').textContent='Du wurdest besiegt und bist am Spawn aufgewacht.';}}
+   if(dist<.9){
+    if(m.attack<=0&&mobDamageClock<=0){
+     playerHealth=Math.max(0,playerHealth-2);renderSurvivalBars();mobDamageClock=1.1;m.attack=1.1;
+     const hud=document.getElementById('mobHud');if(hud)hud.textContent='❤️ Leben: '+playerHealth+'/20 · ⚠️ Zombie-Angriff!';
+     if(playerHealth===0){playerHealth=20;playerHunger=20;renderSurvivalBars();player.x=0;player.z=0;player.feet=.5;document.getElementById('status').textContent='Du wurdest besiegt und bist am Spawn aufgewacht.';}
+    }
    }else{g.position.x+=Math.sin(m.dir)*dt*1.15;g.position.z+=Math.cos(m.dir)*dt*1.15;}
-  }else{m.turn-=dt;if(m.turn<=0){m.dir+=(Math.random()-.5)*2.2;m.turn=1.5+Math.random()*3;}g.position.x+=Math.sin(m.dir)*dt*.42;g.position.z+=Math.cos(m.dir)*dt*.42;}
-  const moved=Math.hypot(g.position.x-oldX,g.position.z-oldZ)>0.002;
+  }else{
+   m.turn-=dt;if(m.turn<=0){m.dir+=(Math.random()-.5)*2.2;m.turn=1.5+Math.random()*3;}
+   g.position.x+=Math.sin(m.dir)*dt*.42;g.position.z+=Math.cos(m.dir)*dt*.42;
+  }
+  const moved=Math.hypot(g.position.x-oldX,g.position.z-oldZ)>.002;
   m.walking=moved;m.walkPhase+=dt*(m.type==='zombie'?8:6)*(moved?1:.25);
-  const swing=moved?Math.sin(m.walkPhase)*.48:Math.sin(m.walkPhase)*.035;
   for(const limb of m.limbs||[])limb.pivot.rotation.x=Math.sin(m.walkPhase+limb.phase)*(moved?.48:.035);
   g.position.y=terrainHeight(Math.round(g.position.x),Math.round(g.position.z))+.5;
   g.rotation.y=m.dir;m.attack=Math.max(0,m.attack-dt);
   if(m.hitFlash>0){m.hitFlash=Math.max(0,m.hitFlash-dt);g.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*14));}
   if(Math.hypot(g.position.x-player.x,g.position.z-player.z)>34){scene.remove(g);mobs.splice(i,1);}
  }
- const hud=document.getElementById('mobHud');if(hud)hud.textContent='🐾 Kreaturen: '+mobs.length;renderSurvivalBars();
-});}
- }
- const hud=document.getElementById('mobHud');if(hud)hud.textContent='🐾 Kreaturen: '+mobs.length;renderSurvivalBars();
+ const hud=document.getElementById('mobHud');if(hud)hud.textContent='🐾 Kreaturen: '+mobs.length;
+ renderSurvivalBars();
 }
 function hitMobWithRay(screenPoint=new THREE.Vector2(0,0)){
  raycaster.setFromCamera(screenPoint,camera);
