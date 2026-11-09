@@ -438,20 +438,28 @@ function hitMobWithRay(screenPoint=new THREE.Vector2(0,0)){
  return true;
 }
 const droppedItems=[];
+function dropGroundY(x,z){
+ const h=terrainHeight(Math.round(x),Math.round(z));
+ // Im Fluss liegt die Wasseroberfläche auf y=0; sonst auf dem obersten Terrainblock.
+ return (h<0?0:h)+.74;
+}
 function spawnBlockDrop(type,position){
  const material=blockMaterials[type]||blockMaterials.grass;
  const mesh=new THREE.Mesh(new THREE.BoxGeometry(.48,.48,.48),material);
- mesh.position.set(position.x+(Math.random()-.5)*.35,position.y+.15,position.z+(Math.random()-.5)*.35);
- mesh.rotation.set(Math.random()*.35,Math.random()*Math.PI,Math.random()*.35);mesh.scale.setScalar(1);
- mesh.castShadow=false;mesh.userData={dropType:type,vy:2.2+Math.random()*1.1,life:0};
+ const x=position.x+(Math.random()-.5)*.35,z=position.z+(Math.random()-.5)*.35;
+ mesh.position.set(x,Math.max(position.y+.55,dropGroundY(x,z)+.8),z);
+ mesh.rotation.set(Math.random()*.35,Math.random()*Math.PI,Math.random()*.35);
+ mesh.castShadow=false;mesh.userData={dropType:type,vy:1.1+Math.random()*.5,life:0};
  scene.add(mesh);droppedItems.push(mesh);
 }
 function updateDroppedItems(dt){
  for(let i=droppedItems.length-1;i>=0;i--){
   const item=droppedItems[i],u=item.userData;u.life+=dt;
-  u.vy-=10*dt;item.position.y+=u.vy*dt;
-  if(item.position.y<.18){item.position.y=.18;u.vy=Math.abs(u.vy)*.28;if(u.vy<.35)u.vy=0;}
-  item.rotation.y+=dt*1.8;item.position.y+=Math.sin(u.life*4)*dt*.035;
+  const floorY=dropGroundY(item.position.x,item.position.z);
+  if(item.position.y>floorY){u.vy-=10*dt;item.position.y+=u.vy*dt;if(item.position.y<=floorY){item.position.y=floorY;u.vy=0;}}
+  else{item.position.y=floorY;u.vy=0;}
+  item.rotation.y+=dt*1.8;
+  item.position.y+=Math.sin(u.life*4)*dt*.025;
   const dx=item.position.x-player.x,dz=item.position.z-player.z;
   if(Math.hypot(dx,dz)<1.45&&Math.abs(item.position.y-(player.feet+0.65))<1.8){
    if(addItem(u.dropType,1)){scene.remove(item);droppedItems.splice(i,1);playSfx('pickup');renderInventory();document.getElementById('status').textContent=(itemNames[u.dropType]||u.dropType)+' eingesammelt!';}
@@ -568,7 +576,7 @@ function countItem(type){return inventorySlots.reduce((n,s)=>n+(s&&s.type===type
 function awardXP(amount,reason='Aktion'){const account=window.lifeverseCurrentAccountId||'guest',key='lifeverse-xp-'+account,current=Math.max(0,Number(localStorage.getItem(key))||0),total=current+amount;localStorage.setItem(key,String(total));const level=Math.floor(total/100)+1,progress=total%100,el=document.getElementById('accountLevel');if(el)el.textContent='⭐ Level '+level+' · '+progress+' / 100 XP';const status=document.getElementById('status');if(status&&amount>0)status.textContent='+'+amount+' XP · '+reason+' | Level '+level;if(window.lifeversePresenceRefresh)window.lifeversePresenceRefresh();}
 window.lifeverseAwardXP=awardXP;
 function refreshAccountLevel(){const account=window.lifeverseCurrentAccountId||'guest',total=Math.max(0,Number(localStorage.getItem('lifeverse-xp-'+account))||0),el=document.getElementById('accountLevel');if(el)el.textContent='⭐ Level '+(Math.floor(total/100)+1)+' · '+(total%100)+' / 100 XP';}
-function addItem(type,amount=1){let left=amount;for(const s of inventorySlots){if(s&&s.type===type&&s.count<64){const n=Math.min(64-s.count,left);s.count+=n;left-=n;if(!left)break;}}while(left>0){const i=inventorySlots.findIndex(s=>!s);if(i<0)break;const n=Math.min(64,left);inventorySlots[i]={type,count:n};left-=n;}return left===0;}
+function addItem(type,amount=1){let left=amount;for(const s of inventorySlots){if(s&&s.type===type&&s.count<64){const n=Math.min(64-s.count,left);s.count+=n;left-=n;if(!left)break;}}while(left>0){let i=inventorySlots.slice(0,9).findIndex(s=>!s);if(i<0)i=inventorySlots.findIndex((s,index)=>index>=9&&!s);if(i<0)break;const n=Math.min(64,left);inventorySlots[i]={type,count:n};left-=n;}return left===0;}
 function removeItem(type,amount=1){if(countItem(type)<amount)return false;let left=amount;for(let i=inventorySlots.length-1;i>=0&&left>0;i--){const s=inventorySlots[i];if(s&&s.type===type){const n=Math.min(s.count,left);s.count-=n;left-=n;if(s.count<=0)inventorySlots[i]=null;}}if(selectedSlot>=0&&!inventorySlots[selectedSlot])selectedSlot=-1;return true;}
 function swapInventorySlots(a,b){if(a===b)return;if(inventorySlots[a]&&inventorySlots[b]&&inventorySlots[a].type===inventorySlots[b].type){const room=64-inventorySlots[b].count;const moved=Math.min(room,inventorySlots[a].count);inventorySlots[b].count+=moved;inventorySlots[a].count-=moved;if(inventorySlots[a].count===0)inventorySlots[a]=null;}else{const t=inventorySlots[a];inventorySlots[a]=inventorySlots[b];inventorySlots[b]=t;}}
 function chooseInventorySlot(i){if(suppressInventoryClick){suppressInventoryClick=false;return;}if(inventoryPick<0){if(inventorySlots[i])inventoryPick=i;}else{swapInventorySlots(inventoryPick,i);inventoryPick=-1;}renderInventory();}
