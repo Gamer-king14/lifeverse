@@ -159,6 +159,14 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
    <div class="server-join"><input id="joinCode" autocomplete="off" autocapitalize="none" placeholder="Servercode eingeben"><button id="joinRoom">🔗 SERVER BEITRETEN</button></div>
    <div id="multiStatus">Noch nicht verbunden.</div>
   </section>
+
+  <section id="sharedWorldsPanel" aria-label="Gespeicherte Freundeswelten" style="margin:16px 0;padding:16px;border:1px solid #526b7b;border-radius:14px;background:rgba(10,25,35,.82);color:#fff">
+   <h2 style="margin:0 0 8px">☁️ DAUERHAFTE FREUNDESWELTEN</h2>
+   <p style="margin:0 0 10px;font-size:13px;color:#c7d5df">Lade eine gespeicherte Welt deiner Freunde – auch wenn der Besitzer offline ist.</p>
+   <button id="refreshSharedWorlds" type="button">🔄 WELTEN AKTUALISIEREN</button>
+   <div id="sharedWorldStatus" role="status" style="font-size:13px;margin-top:8px;color:#c7d5df">Melde dich an, um gespeicherte Welten zu sehen.</div>
+   <div id="sharedWorldList" style="display:grid;gap:8px;margin-top:10px"></div>
+  </section>
   <div class="profile-bar"><label for="playerNameInput">DEIN SPIELERNAME</label><input id="playerNameInput" maxlength="18" autocomplete="nickname" placeholder="Dein Name"></div>
   <button class="lobby-button" id="openLobbyChat">💬 FREUNDE & CHAT ÖFFNEN</button>
   <div class="mode-cards">
@@ -579,12 +587,42 @@ document.getElementById('buildBtn').onclick=()=>{setMode('build');eraseMode=fals
 document.getElementById('soundTestBtn').addEventListener('click',async()=>{const ok=await unlockGameAudio();if(ok)playSfx('test');else document.getElementById('soundTestBtn').textContent='🔇 AUDIO?';});document.getElementById('inventoryClose').onclick=()=>{inventoryOpen=false;inventoryPick=-1;document.getElementById('inventoryPanel').classList.remove('visible');};document.getElementById('sendToHotbar').onclick=movePickedToHotbar;document.getElementById('mineAction').onclick=()=>setSurvivalAction('mine');document.getElementById('placeAction').onclick=()=>setSurvivalAction('place');document.getElementById('mineBtn').onclick=()=>{survivalAction='mine';interactAtCenter('mine');};document.getElementById('attackBtn').onclick=()=>{if(mode!=='survival'){document.getElementById('status').textContent='Angreifen geht im Survival-Modus.';return;}if(hitMobWithRay())return;document.getElementById('status').textContent='Kein Gegner im Fadenkreuz – ziele auf eine Kreatur und greife an.';};document.getElementById('buildBlockBtn').onclick=()=>{survivalAction='place';interactAtCenter('place');};document.getElementById('eraseBtn').onclick=()=>{setMode('build');eraseMode=!eraseMode;document.getElementById('eraseBtn').classList.toggle('active',eraseMode);document.getElementById('status').textContent=eraseMode?'Radier-Modus · Block antippen zum Entfernen':'Baumodus · '+selected+' ausgewählt'};
 let activeSaveMode=null;
 function storageKey(which){return 'lifeverse-world-'+which;}
-function saveCurrentWorld(showMessage=false){if(!activeSaveMode)return;const data={blocks:blocks.map(b=>b.userData),chunks:[...generatedChunks],inventorySlots,crafted,player:{x:player.x,z:player.z,feet:player.feet},selected};localStorage.setItem(storageKey(activeSaveMode),JSON.stringify(data));if(showMessage)alert((activeSaveMode==='survival'?'Survival':'Creative')+'-Welt wurde gespeichert!');}
+let activeSharedWorldId=null,cloudSaveBusy=false,cloudSaveAgain=false;
+function currentWorldData(){return {blocks:blocks.map(b=>b.userData),chunks:[...generatedChunks],inventorySlots,crafted,player:{x:player.x,z:player.z,feet:player.feet},selected,mode:activeSaveMode||'survival'};}
+function saveCurrentWorld(showMessage=false){if(!activeSaveMode)return;const data=currentWorldData();localStorage.setItem(storageKey(activeSaveMode),JSON.stringify(data));if(showMessage)alert((activeSaveMode==='survival'?'Survival':'Creative')+'-Welt wurde lokal gespeichert!');}
+async function saveCloudWorld(showMessage=false){
+ const db=window.lifeverseDB,userId=window.lifeverseCurrentAccountId;
+ if(!activeSaveMode||!db||!userId)return;
+ if(cloudSaveBusy){cloudSaveAgain=true;return;}
+ cloudSaveBusy=true;
+ try{
+  const payload={...currentWorldData(),savedAt:new Date().toISOString()};
+  let result;
+  if(activeSharedWorldId){result=await db.from('shared_worlds').update({world_data:payload,updated_at:new Date().toISOString()}).eq('id',activeSharedWorldId);}
+  else {result=await db.from('shared_worlds').upsert({owner_id:userId,world_name:'Meine Welt',world_data:payload,updated_at:new Date().toISOString()},{onConflict:'owner_id'}).select('id').single();if(!result.error&&result.data?.id)activeSharedWorldId=result.data.id;}
+  if(result.error)throw result.error;
+  const status=document.getElementById('sharedWorldStatus');if(status&&showMessage)status.textContent='☁️ Welt sicher in der Cloud gespeichert ✓';
+ }catch(e){console.warn('Cloud-Speicherung fehlgeschlagen:',e);const status=document.getElementById('sharedWorldStatus');if(status&&showMessage)status.textContent='Cloud-Speicherung fehlgeschlagen: '+(e.message||e);}
+ finally{cloudSaveBusy=false;if(cloudSaveAgain){cloudSaveAgain=false;saveCloudWorld(false);}}
+}
+async function refreshSharedWorlds(){
+ const db=window.lifeverseDB,userId=window.lifeverseCurrentAccountId,list=document.getElementById('sharedWorldList'),status=document.getElementById('sharedWorldStatus');
+ if(!db||!userId){status.textContent='Bitte melde dich im Freunde-&-Chat-Menü mit deinem LIFEVERSE-Konto an.';return;}
+ status.textContent='Suche gespeicherte Welten …';list.replaceChildren();
+ const {data,error}=await db.from('shared_worlds').select('id,owner_id,world_name,world_data,updated_at').order('updated_at',{ascending:false});
+ if(error){status.textContent='Fehler beim Laden: '+error.message;return;}
+ const worlds=(data||[]).filter(w=>w.owner_id!==userId&&w.world_data&&Array.isArray(w.world_data.blocks));
+ if(!worlds.length){status.textContent='Noch keine gespeicherten Welten von Freunden gefunden.';return;}
+ status.textContent=worlds.length+' gespeicherte Freundeswelt'+(worlds.length===1?'':'en')+' gefunden.';
+ for(const w of worlds){const {data:profile}=await db.from('profiles').select('username').eq('id',w.owner_id).maybeSingle();const b=document.createElement('button');b.type='button';b.style.cssText='text-align:left;padding:12px;border:1px solid #4c7791;border-radius:10px;background:#17364a;color:white';const date=w.updated_at?new Date(w.updated_at).toLocaleString('de-DE'):'unbekannt';b.textContent='🌍 '+(w.world_name||'Welt')+' · '+(profile?.username||'Freund')+' · zuletzt gespeichert: '+date;b.onclick=()=>{const d=w.world_data;const mode=d.mode==='creative'?'creative':'survival';localStorage.setItem(storageKey(mode),JSON.stringify(d));activeSharedWorldId=w.id;enterGame(mode);status.textContent='Du spielst jetzt in der gespeicherten Welt von '+(profile?.username||'deinem Freund')+'. Änderungen werden automatisch geteilt.';};list.appendChild(b);}
+}
+window.lifeverseRefreshSharedWorlds=refreshSharedWorlds;
+document.getElementById('refreshSharedWorlds').onclick=()=>refreshSharedWorlds();
 function loadModeWorld(which){const raw=localStorage.getItem(storageKey(which));if(!raw){makeWorld();return false;}try{const data=JSON.parse(raw);clearWorld();const savedBlocks=Array.isArray(data)?data:data.blocks||[];savedBlocks.forEach(b=>addBlock(b.x,b.y,b.z,b.type));if(!Array.isArray(data)){(data.chunks||[]).forEach(k=>generatedChunks.add(k));inventorySlots=Array.isArray(data.inventorySlots)?data.inventorySlots:Array(36).fill(null);crafted=data.crafted||{planks:0,sticks:0,workbench:0,pickaxe:0};if(data.player){player.x=data.player.x||0;player.z=data.player.z||0;player.feet=Number.isFinite(data.player.feet)?data.player.feet:terrainHeight(player.x,player.z)+.5;}selected=data.selected||'grass';}player.vy=0;avatar.position.set(player.x,player.feet,player.z);ensureChunks();renderInventory();return true;}catch(err){console.error('Spielstand konnte nicht geladen werden',err);makeWorld();return false;}}
 document.getElementById('saveBtn').onclick=()=>saveCurrentWorld(true);
 document.getElementById('loadBtn').onclick=()=>{if(!activeSaveMode){alert('Wähle zuerst einen Spielmodus.');return;}if(loadModeWorld(activeSaveMode))alert('Deine '+(activeSaveMode==='survival'?'Survival':'Creative')+'-Welt wurde geladen!');else alert('Für diesen Modus gibt es noch keinen Spielstand. Eine neue Welt wurde erstellt.');};
 document.getElementById('newBtn').onclick=()=>{if(confirm('Möchtest du eine neue '+(activeSaveMode==='survival'?'Survival':'Creative')+'-Welt erstellen? Dein bisheriger Spielstand wird ersetzt.')){makeWorld();saveCurrentWorld();}};
-setInterval(()=>saveCurrentWorld(false),10000);
+setInterval(()=>{saveCurrentWorld(false);saveCloudWorld(false);},10000);
 document.getElementById('dayBtn').onclick=()=>{night=!night;scene.background=new THREE.Color(night?0x101a3b:0x87c8ed);scene.fog.color.copy(scene.background);sun.intensity=night?.35:2;sun.color.set(night?0x9abaff:0xffffff)};
 const keys={};addEventListener('keydown',e=>{if(e.code==='Escape'){e.preventDefault();if(document.getElementById('modeSelect').classList.contains('visible'))return;togglePause();return;}if(gamePaused)return;if(e.code==='Space'){jumpQueued=true;e.preventDefault();}keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelectorAll('#dpad button,#jumpBtn').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();if(k==='space')jumpQueued=true;else keys[k]=true;try{b.setPointerCapture(e.pointerId)}catch(_){}});const release=()=>{if(k!=='space')keys[k]=false;};b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)});const joystick=document.getElementById('joystick'),stickKnob=document.getElementById('stickKnob');let joyPointer=null;function resetJoystick(){joyPointer=null;keys.w=keys.a=keys.s=keys.d=false;stickKnob.style.transform='translate(0px,0px)'}function moveJoystick(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max= Math.min(r.width,r.height)*.34,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max;}stickKnob.style.transform='translate('+dx+'px,'+dy+'px)';const nx=dx/max,ny=dy/max;keys.w=ny<-.28;keys.s=ny>.28;keys.a=nx<-.28;keys.d=nx>.28;}joystick.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;try{joystick.setPointerCapture(e.pointerId)}catch(_){}moveJoystick(e)});joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();moveJoystick(e)}});joystick.addEventListener('pointerup',e=>{if(e.pointerId===joyPointer)resetJoystick()});joystick.addEventListener('pointercancel',resetJoystick);
 let previousFrame=performance.now(),lastMiniMapDraw=0,lastOutlineUpdate=0,lastChunkCheck=0,mobUpdateAccumulator=0;function animate(now=performance.now()){requestAnimationFrame(animate);const dt=Math.min((now-previousFrame)/1000,.04);previousFrame=now;if(!gamePaused&&(mode==='walk'||mode==='survival')){updatePlayer(dt);updateFollowCamera(true);if(now-lastChunkCheck>450){ensureChunks();lastChunkCheck=now;}}if(!gamePaused&&mode==='survival'&&now-lastMiniMapDraw>650){drawMiniMap();lastMiniMapDraw=now;}if(!gamePaused&&mode==='survival')updateDroppedItems(dt);if(!gamePaused){mobUpdateAccumulator+=dt;if(mobUpdateAccumulator>=.033){updateMobs(mobUpdateAccumulator);mobUpdateAccumulator=0;}}if(now-lastOutlineUpdate>200){updateBlockOutline();lastOutlineUpdate=now;}renderer.render(scene,camera)}animate();
@@ -637,7 +675,7 @@ function enterGame(selectedMode){gamePaused=false;document.getElementById('pause
 function bindModeCard(id,selectedMode){const el=document.getElementById(id);el.addEventListener('click',()=>enterGame(selectedMode));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();enterGame(selectedMode);}});}
 const pauseLogo=document.getElementById('pauseLogo');pauseLogo.addEventListener('click',()=>togglePause());pauseLogo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();togglePause();}});
 document.getElementById('resumeGame').onclick=()=>togglePause(false);
-document.getElementById('pauseSave').onclick=()=>saveCurrentWorld(true);
+document.getElementById('pauseSave').onclick=()=>{saveCurrentWorld(true);saveCloudWorld(true);};
 document.getElementById('switchSurvival').onclick=()=>{saveCurrentWorld(false);enterGame('survival');};
 document.getElementById('switchCreative').onclick=()=>{saveCurrentWorld(false);enterGame('creative');};
 document.getElementById('leaveGame').onclick=()=>{saveCurrentWorld(false);togglePause(false);activeSaveMode=null;document.getElementById('modeSelect').classList.add('visible');};
@@ -662,7 +700,7 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
   $('accountLoggedOut').style.display=user?'none':'block';$('accountLoggedIn').style.display=user?'block':'none';
   if(!user){if(channel){await db.removeChannel(channel);channel=null;}friend=null;say('Melde dich an oder erstelle ein Konto, um Freunde zu finden.');return;}
   const {data:p}=await db.from('profiles').select('username').eq('id',user.id).maybeSingle();
-  const name=p?.username||user.user_metadata?.username||'Spieler';window.lifeverseCurrentAccountId=user.id;$('accountIdentity').textContent='Angemeldet als '+name;localStorage.setItem('lifeverse-player-name',name);refreshAccountLevel();await startPresence(name);
+  const name=p?.username||user.user_metadata?.username||'Spieler';window.lifeverseCurrentAccountId=user.id;if(window.lifeverseRefreshSharedWorlds)window.lifeverseRefreshSharedWorlds();$('accountIdentity').textContent='Angemeldet als '+name;localStorage.setItem('lifeverse-player-name',name);refreshAccountLevel();await startPresence(name);
   say('Konto verbunden ✓');await requests();await friends();
  }
  async function register(){
@@ -749,7 +787,7 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
  }
  function init(){
   if(!window.supabase?.createClient){say('Supabase-Bibliothek nicht geladen. Bitte Seite neu laden.');return;}
-  db=window.supabase.createClient(URL,KEY);
+  db=window.supabase.createClient(URL,KEY);window.lifeverseDB=db;
   $('accountRegister').onclick=register;$('accountLogin').onclick=login;$('accountLogout').onclick=logout;$('playerSearchBtn').onclick=search;
   $('openWorldInviteMenu').onclick=()=>{$('worldInviteMenu').classList.add('visible');$('worldInviteStatus').textContent=hostingRoom?'Deine Welt ist bereit.':'Beim Einladen wird deine Welt geöffnet.';friends();};
   $('closeWorldInviteMenu').onclick=()=>$('worldInviteMenu').classList.remove('visible');
