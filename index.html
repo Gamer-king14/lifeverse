@@ -646,23 +646,72 @@ function addChatLine(sender,message){const log=document.getElementById('chatLog'
 function sendChatMessage(){const input=document.getElementById('chatInput'),message=input.value.trim();if(!message)return;if(!multiplayerActive){setMultiStatus('Verbinde dich zuerst mit einem Freund.');return;}addChatLine(getPlayerName(),message);broadcastNet({type:'chat',message:message.slice(0,180)});input.value='';input.focus();}
 function sendWorldSnapshot(conn){const list=blocks.map(b=>({x:b.userData.x,y:b.userData.y,z:b.userData.z,type:b.userData.type}));conn.send({type:'snapshotStart',count:list.length,chunks:[...generatedChunks],mode,saveMode:activeSaveMode,inventorySlots,crafted,selected});for(let i=0;i<list.length;i+=180)conn.send({type:'snapshotPart',blocks:list.slice(i,i+180)});conn.send({type:'snapshotEnd'});}
 async function serverPasswordDigest(salt,password){const bytes=new TextEncoder().encode(salt+':'+password);const hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(v=>v.toString(16).padStart(2,'0')).join('');}
-function setupMultiplayerConnection(conn,sendSnapshot=false){if(multiplayerConnections.some(c=>c.peer===conn.peer))return;multiplayerConnections.push(conn);renderFriendList();renderPlayersMenu();let authorized=!sendSnapshot;conn.on('open',()=>{setMultiStatus(sendSnapshot?'Prüfe Serverzugang …':'Verbunden – warte auf Passwortprüfung …');renderFriendList();renderPlayersMenu();if(sendSnapshot)conn.send({type:'passwordChallenge',salt:serverPasswordSalt,serverName:activeServerName});});conn.on('data',async data=>{if(!data||typeof data!=='object')return;
- if(sendSnapshot&&!authorized){if(data.type==='passwordResponse'){const expected=await serverPasswordDigest(serverPasswordSalt,serverPassword);if(data.digest===expected){authorized=true;conn.send({type:'passwordAccepted',serverName:activeServerName});sendWorldSnapshot(conn);setMultiStatus('Passwort korrekt. '+activeServerName+' ist verbunden ✓');}else{conn.send({type:'passwordDenied'});setMultiStatus('Ein Spieler hat ein falsches Server-Passwort eingegeben.');setTimeout(()=>{try{conn.close();}catch(e){}},300);} }return;}
- if(data.type==='passwordChallenge'&&!sendSnapshot){try{const password=document.getElementById('joinPasswordInput').value;if(!password){setMultiStatus('Bitte gib das Server-Passwort ein.');conn.close();return;}const digest=await serverPasswordDigest(data.salt,password);conn.send({type:'passwordResponse',digest});setMultiStatus('Passwort wird geprüft …');}catch(e){setMultiStatus('Passwortprüfung nicht verfügbar. Bitte HTTPS nutzen.');conn.close();}return;}
- if(data.type==='passwordAccepted'&&!sendSnapshot){authorized=true;multiplayerActive=true;setMultiStatus('Passwort korrekt – du bist auf '+(data.serverName||'dem Server')+'!');return;}
- if(data.type==='passwordDenied'&&!sendSnapshot){setMultiStatus('Falsches Server-Passwort.');conn.close();return;}
- if(!authorized)return;
- if(data.type==='chat'){if(typeof data.message==='string'){const msg=data.message.trim().slice(0,180);if(msg){addChatLine(peerName(conn),msg);if(hostingRoom)multiplayerConnections.forEach(other=>{if(other!==conn&&other.open)try{other.send({type:'chat',message:msg});}catch(e){}});}}}
- else if(data.type==='position'){const a=makeRemoteAvatar(conn.peer);const px=Number(data.x),pz=Number(data.z),pf=Number(data.feet),pa=Number(data.angle);if(Number.isFinite(px)&&Number.isFinite(pz)&&Number.isFinite(pf)){a.position.set(px,pf,pz);a.rotation.y=Number.isFinite(pa)?pa:0;}}
- else if(data.type==='snapshotStart'){applyingNetworkBlocks=true;clearWorld();networkSnapshotChunks=data.chunks||[];if(['build','walk','survival'].includes(data.mode))setMode(data.mode);if(data.saveMode==='survival'||data.saveMode==='creative')activeSaveMode=data.saveMode;if(Array.isArray(data.inventorySlots))inventorySlots=data.inventorySlots.slice(0,36);if(data.crafted&&typeof data.crafted==='object')crafted=data.crafted;if(typeof data.selected==='string')selected=data.selected;renderInventory();}
- else if(data.type==='snapshotPart'&&Array.isArray(data.blocks)){data.blocks.forEach(b=>addNetworkBlock(b.x,b.y,b.z,b.type));}
- else if(data.type==='snapshotEnd'){generatedChunks=new Set(networkSnapshotChunks||[]);applyingNetworkBlocks=false;ensureChunks();avatar.position.set(player.x,player.feet,player.z);multiplayerActive=true;setMultiStatus('Du bist jetzt in der Welt deines Freundes!');}
- else if(data.type==='blockAdd'){applyingNetworkBlocks=true;addNetworkBlock(data.x,data.y,data.z,data.blockType);applyingNetworkBlocks=false;}
- else if(data.type==='blockRemove'){applyingNetworkBlocks=true;const b=blocks.find(v=>v.userData.x===data.x&&v.userData.y===data.y&&v.userData.z===data.z);if(b){scene.remove(b);blocks=blocks.filter(v=>v!==b);}applyingNetworkBlocks=false;}
- });conn.on('close',()=>{multiplayerConnections=multiplayerConnections.filter(c=>c!==conn);removeRemoteAvatar(conn.peer);renderFriendList();renderPlayersMenu();if(!multiplayerConnections.length){multiplayerActive=false;setMultiStatus('Verbindung getrennt.');}});conn.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Bitte erneut versuchen.')));}
+function setupMultiplayerConnection(conn,sendSnapshot=false){
+ if(multiplayerConnections.some(c=>c.peer===conn.peer))return;
+ multiplayerConnections.push(conn);renderFriendList();renderPlayersMenu();
+ let authorized=!sendSnapshot,connectionOpened=false,handshakeDone=false;
+ const connectionTimer=setTimeout(()=>{if(!connectionOpened){setMultiStatus('Zeitüberschreitung: Keine direkte Verbindung. Prüft, ob der Besitzer online ist und beide Geräte Internet haben.');try{conn.close();}catch(e){}}},18000);
+ let handshakeTimer=null;
+ const clearHandshake=()=>{handshakeDone=true;if(handshakeTimer)clearTimeout(handshakeTimer);};
+ conn.on('open',()=>{
+  connectionOpened=true;clearTimeout(connectionTimer);
+  setMultiStatus(sendSnapshot?'Verbunden. Prüfe Server-Passwort …':'Verbunden. Warte auf Serverfreigabe …');
+  renderFriendList();renderPlayersMenu();
+  if(sendSnapshot){conn.send({type:'passwordChallenge',salt:serverPasswordSalt,serverName:activeServerName});}
+  handshakeTimer=setTimeout(()=>{if(!handshakeDone){setMultiStatus('Der Server antwortet nicht auf die Passwortprüfung. Bitte Server neu erstellen und erneut versuchen.');try{conn.close();}catch(e){}}},12000);
+ });
+ conn.on('data',async data=>{
+  if(!data||typeof data!=='object')return;
+  if(sendSnapshot&&!authorized){
+   if(data.type==='passwordResponse'){
+    const expected=await serverPasswordDigest(serverPasswordSalt,serverPassword);
+    if(data.digest===expected){authorized=true;clearHandshake();conn.send({type:'passwordAccepted',serverName:activeServerName});sendWorldSnapshot(conn);setMultiStatus('Passwort korrekt. '+activeServerName+' ist verbunden ✓');}
+    else{clearHandshake();conn.send({type:'passwordDenied'});setMultiStatus('Falsches Server-Passwort.');setTimeout(()=>{try{conn.close();}catch(e){}},500);}
+   }return;
+  }
+  if(data.type==='passwordChallenge'&&!sendSnapshot){
+   try{const password=document.getElementById('joinPasswordInput').value;if(!password){clearHandshake();setMultiStatus('Bitte gib das Server-Passwort ein.');conn.close();return;}const digest=await serverPasswordDigest(data.salt,password);conn.send({type:'passwordResponse',digest});setMultiStatus('Passwort wird geprüft …');}
+   catch(e){clearHandshake();setMultiStatus('Passwortprüfung fehlgeschlagen: '+(e.message||'Bitte HTTPS nutzen.'));conn.close();}
+   return;
+  }
+  if(data.type==='passwordAccepted'&&!sendSnapshot){clearHandshake();authorized=true;multiplayerActive=true;setMultiStatus('Passwort korrekt – du bist auf '+(data.serverName||'dem Server')+'!');return;}
+  if(data.type==='passwordDenied'&&!sendSnapshot){clearHandshake();setMultiStatus('Falsches Server-Passwort.');conn.close();return;}
+  if(!authorized)return;
+  if(data.type==='chat'){if(typeof data.message==='string'){const msg=data.message.trim().slice(0,180);if(msg){addChatLine(peerName(conn),msg);if(hostingRoom)multiplayerConnections.forEach(other=>{if(other!==conn&&other.open)try{other.send({type:'chat',message:msg});}catch(e){}});}}}
+  else if(data.type==='position'){const a=makeRemoteAvatar(conn.peer);const px=Number(data.x),pz=Number(data.z),pf=Number(data.feet),pa=Number(data.angle);if(Number.isFinite(px)&&Number.isFinite(pz)&&Number.isFinite(pf)){a.position.set(px,pf,pz);a.rotation.y=Number.isFinite(pa)?pa:0;}}
+  else if(data.type==='snapshotStart'){applyingNetworkBlocks=true;clearWorld();networkSnapshotChunks=data.chunks||[];if(['build','walk','survival'].includes(data.mode))setMode(data.mode);if(data.saveMode==='survival'||data.saveMode==='creative')activeSaveMode=data.saveMode;if(Array.isArray(data.inventorySlots))inventorySlots=data.inventorySlots.slice(0,36);if(data.crafted&&typeof data.crafted==='object')crafted=data.crafted;if(typeof data.selected==='string')selected=data.selected;renderInventory();}
+  else if(data.type==='snapshotPart'&&Array.isArray(data.blocks)){data.blocks.forEach(b=>addNetworkBlock(b.x,b.y,b.z,b.type));}
+  else if(data.type==='snapshotEnd'){generatedChunks=new Set(networkSnapshotChunks||[]);applyingNetworkBlocks=false;ensureChunks();avatar.position.set(player.x,player.feet,player.z);multiplayerActive=true;setMultiStatus('Du bist jetzt in der Welt deines Freundes!');}
+  else if(data.type==='blockAdd'){applyingNetworkBlocks=true;addNetworkBlock(data.x,data.y,data.z,data.blockType);applyingNetworkBlocks=false;}
+  else if(data.type==='blockRemove'){applyingNetworkBlocks=true;const b=blocks.find(v=>v.userData.x===data.x&&v.userData.y===data.y&&v.userData.z===data.z);if(b){scene.remove(b);blocks=blocks.filter(v=>v!==b);}applyingNetworkBlocks=false;}
+ });
+ conn.on('close',()=>{clearTimeout(connectionTimer);if(handshakeTimer)clearTimeout(handshakeTimer);multiplayerConnections=multiplayerConnections.filter(c=>c!==conn);removeRemoteAvatar(conn.peer);renderFriendList();renderPlayersMenu();if(!multiplayerConnections.length){multiplayerActive=false;if(multiStatus&&multiStatus.textContent.indexOf('Zeitüberschreitung')<0&&multiStatus.textContent.indexOf('Falsches')<0)setMultiStatus('Verbindung getrennt.');}});
+ conn.on('error',e=>{clearTimeout(connectionTimer);if(handshakeTimer)clearTimeout(handshakeTimer);setMultiStatus('Verbindungsfehler: '+(e.message||'Netzwerk prüfen und erneut versuchen.'));});
+}
 let activeServerName='Meine Welt',serverPassword='',serverPasswordSalt='';
 async function startHosting(){activeServerName=document.getElementById('serverNameInput').value.trim().slice(0,28)||'Meine Welt';serverPassword=document.getElementById('serverPasswordInput').value;if(serverPassword.length<4){setMultiStatus('Bitte lege ein Server-Passwort mit mindestens 4 Zeichen fest.');return;}if(!window.crypto?.subtle||!window.crypto?.getRandomValues){setMultiStatus('Sichere Passwortprüfung wird von diesem Browser nicht unterstützt.');return;}const saltBytes=crypto.getRandomValues(new Uint8Array(16));serverPasswordSalt=[...saltBytes].map(v=>v.toString(16).padStart(2,'0')).join('');localStorage.setItem('lifeverse-server-name',activeServerName);hostingRoom=true;if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,id)=>removeRemoteAvatar(id));multiplayerActive=false;setMultiStatus('Erstelle Server „'+activeServerName+'“ …');multiplayerPeer=new Peer();multiplayerPeer.on('open',id=>{document.getElementById('roomArea').style.display='block';document.getElementById('roomCode').textContent=id;document.getElementById('roomNameDisplay').textContent=activeServerName;setMultiStatus('Server „'+activeServerName+'“ ist bereit. Teile Code und Passwort mit Freunden.');if(typeof window.lifeverseOnWorldHostReady==='function')window.lifeverseOnWorldHostReady(id);});multiplayerPeer.on('connection',conn=>setupMultiplayerConnection(conn,true));multiplayerPeer.on('error',e=>setMultiStatus('Peer-Fehler: '+(e.message||'Verbindung nicht möglich.')));}
-function joinRoom(){hostingRoom=false;const id=document.getElementById('joinCode').value.trim(),password=document.getElementById('joinPasswordInput').value;if(!id){setMultiStatus('Bitte gib zuerst einen Servercode ein.');return;}if(password.length<4){setMultiStatus('Bitte gib das Server-Passwort ein (mind. 4 Zeichen).');return;}if(typeof Peer==='undefined'){setMultiStatus('Multiplayer konnte nicht geladen werden. Bitte Seite neu laden.');return;}if(multiplayerPeer)multiplayerPeer.destroy();multiplayerConnections=[];remoteAvatars.forEach((a,key)=>removeRemoteAvatar(key));multiplayerActive=false;setMultiStatus('Verbinde mit Raum …');multiplayerPeer=new Peer();multiplayerPeer.on('open',()=>{const conn=multiplayerPeer.connect(id,{reliable:true,metadata:{username:getPlayerName()}});setupMultiplayerConnection(conn,false);});multiplayerPeer.on('error',e=>setMultiStatus('Verbindungsfehler: '+(e.message||'Code prüfen.')));}
+function peerErrorText(e){const type=e&&e.type;const msg=e&&e.message?e.message:'';if(type==='peer-unavailable')return 'Server nicht gefunden. Ist der Besitzer noch online und stimmt der Code?';if(type==='network'||type==='socket-error'||type==='socket-closed')return 'Verbindung zum Vermittlungsserver fehlgeschlagen. Prüfe dein WLAN.';if(type==='browser-incompatible')return 'Dieser Browser unterstützt die benötigte WebRTC-Verbindung nicht.';if(type==='webrtc')return 'Direkte Verbindung blockiert. Das WLAN oder Netzwerk verhindert möglicherweise Peer-to-Peer.';if(type==='server-error')return 'Der PeerJS-Vermittlungsserver hat einen Fehler gemeldet.';return 'Verbindungsfehler'+(msg?': '+msg:' – bitte Code und Internet prüfen.');}
+function joinRoom(){
+ hostingRoom=false;
+ const id=document.getElementById('joinCode').value.trim(),password=document.getElementById('joinPasswordInput').value;
+ if(!id){setMultiStatus('Bitte gib zuerst einen Servercode ein.');return;}
+ if(password.length<4){setMultiStatus('Bitte gib das Server-Passwort ein (mind. 4 Zeichen).');return;}
+ if(typeof Peer==='undefined'){setMultiStatus('PeerJS konnte nicht geladen werden. Seite neu laden und Internet prüfen.');return;}
+ if(multiplayerPeer)multiplayerPeer.destroy();
+ multiplayerConnections=[];remoteAvatars.forEach((a,key)=>removeRemoteAvatar(key));multiplayerActive=false;
+ setMultiStatus('Verbinde mit dem Vermittlungsserver …');
+ multiplayerPeer=new Peer();
+ let peerReady=false;
+ const peerTimer=setTimeout(()=>{if(!peerReady){setMultiStatus('Zeitüberschreitung beim Vermittlungsserver. Bitte WLAN prüfen und erneut versuchen.');try{multiplayerPeer.destroy();}catch(e){}}},12000);
+ multiplayerPeer.on('open',()=>{
+  peerReady=true;clearTimeout(peerTimer);setMultiStatus('Vermittlungsserver erreicht. Suche den Spieler mit diesem Servercode …');
+  const conn=multiplayerPeer.connect(id,{reliable:true,serialization:'json',metadata:{username:getPlayerName()}});
+  setupMultiplayerConnection(conn,false);
+ });
+ multiplayerPeer.on('error',e=>{clearTimeout(peerTimer);setMultiStatus(peerErrorText(e));});
+ multiplayerPeer.on('disconnected',()=>setMultiStatus('Verbindung zum Vermittlungsserver unterbrochen. Bitte erneut versuchen.'));
+ multiplayerPeer.on('close',()=>{if(!multiplayerActive)setMultiStatus('Verbindung geschlossen. Bitte Servercode prüfen und erneut versuchen.');});
+}
 
 const nameInput=document.getElementById('playerNameInput');
 if(nameInput){nameInput.value=getPlayerName()==='Spieler'?'':getPlayerName();nameInput.addEventListener('input',()=>localStorage.setItem('lifeverse-player-name',nameInput.value.trim().slice(0,18)||'Spieler'));}
