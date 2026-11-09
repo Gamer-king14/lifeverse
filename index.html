@@ -229,6 +229,7 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 <input id="accountEmail" type="email" autocomplete="email" placeholder="E-Mail-Adresse">
 <input id="accountPassword" type="password" autocomplete="current-password" placeholder="Passwort (mind. 6 Zeichen)">
 <div class="social-row"><button id="accountRegister">Konto erstellen</button><button id="accountLogin">Anmelden</button></div>
+<button id="accountResend" type="button" style="width:100%;margin-top:8px">📧 Bestätigungs-E-Mail erneut senden</button>
 <div class="hint">Dein Spielername ist für andere sichtbar. Deine E-Mail-Adresse bleibt privat. Je nach Projekteinstellung musst du deine E-Mail zuerst bestätigen.</div>
 </div>
 <div id="accountLoggedIn" style="display:none">
@@ -852,6 +853,17 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
   say('Konto wird erstellt …');const {data,error:e}=await db.auth.signUp({email,password,options:{data:{username}}});
   if(e){say(error(e));return;}if(data.session){await refresh();say('Konto erstellt!');}else say('Bitte bestätige zuerst deine E-Mail über den Link in deinem Postfach. Danach hier anmelden.');
  }
+ async function resendConfirmation(){
+  const email=$('accountEmail').value.trim();
+  if(!email){say('Bitte zuerst deine E-Mail-Adresse eingeben.');$('accountEmail').focus();return;}
+  $('accountResend').disabled=true;say('Bestätigungs-E-Mail wird angefordert …');
+  try{
+   const {error:e}=await db.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+   if(e)throw e;
+   say('Anfrage gesendet. Prüfe auch deinen Spam-Ordner. Falls keine Mail kommt, warte etwas und versuche es später erneut.');
+  }catch(e){say('E-Mail konnte nicht angefordert werden: '+error(e));}
+  finally{$('accountResend').disabled=false;}
+ }
  async function login(){
    const {data,error:e}=await db.auth.signInWithPassword({email:$('accountEmail').value.trim(),password:$('accountPassword').value});
    if(e){say(error(e));return;}
@@ -930,7 +942,7 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
  function init(){
   if(!window.supabase?.createClient){say('Supabase-Bibliothek nicht geladen. Bitte Seite neu laden.');return;}
   db=window.supabase.createClient(URL,KEY);window.lifeverseDB=db;
-  $('accountRegister').onclick=register;$('accountLogin').onclick=login;$('accountLogout').onclick=logout;$('playerSearchBtn').onclick=search;
+  $('accountRegister').onclick=register;$('accountLogin').onclick=login;$('accountResend').onclick=resendConfirmation;$('accountLogout').onclick=logout;$('playerSearchBtn').onclick=search;
   $('openWorldInviteMenu').onclick=()=>{$('worldInviteMenu').classList.add('visible');$('worldInviteStatus').textContent=hostingRoom?'Deine Welt ist bereit.':'Beim Einladen wird deine Welt geöffnet.';friends();};
   $('closeWorldInviteMenu').onclick=()=>$('worldInviteMenu').classList.remove('visible');
   $('worldInviteMenu').addEventListener('click',e=>{if(e.target.id==='worldInviteMenu')$('worldInviteMenu').classList.remove('visible');});
