@@ -151,17 +151,16 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
   <div class="mode-kicker">LIFEVERSE · DEINE WELT. DEINE REGELN.</div>
   <h1 class="mode-title">WÄHLE DEINEN MODUS</h1>
   <p class="mode-intro">Wie möchtest du deine Welt erleben?</p>
-  <div class="profile-bar"><label for="playerNameInput">DEIN SPIELERNAME</label><input id="playerNameInput" maxlength="18" autocomplete="nickname" placeholder="Dein Name"></div>
-  
-  <button class="lobby-button" id="openLobbyChat">💬 FREUNDE & CHAT ÖFFNEN</button>
   <section id="startServerPanel" aria-label="Server erstellen oder beitreten">
-   <h2>🌐 MULTIPLAYER-SERVER</h2>
-   <p>Erstelle einen Server für deine Welt oder tritt mit einem Freund per Code bei.</p>
-   <button id="hostRoom">🌍 SERVER ERSTELLEN</button>
+   <h2>🌐 SERVER ERSTELLEN ODER BEITRETEN</h2>
+   <p>Direkt im Startmenü: Erstelle deine Welt als Server oder tritt mit einem Freund per Code bei.</p>
+   <button id="hostRoom">🌍 EIGENEN SERVER ERSTELLEN</button>
    <div id="roomArea" style="display:none"><div class="server-code-label">DEIN SERVER-CODE</div><div id="roomCode">—</div><button id="copyRoom">📋 CODE KOPIEREN</button></div>
-   <div class="server-join"><input id="joinCode" autocomplete="off" autocapitalize="none" placeholder="Servercode eingeben"><button id="joinRoom">🔗 BEITRETEN</button></div>
+   <div class="server-join"><input id="joinCode" autocomplete="off" autocapitalize="none" placeholder="Servercode eingeben"><button id="joinRoom">🔗 SERVER BEITRETEN</button></div>
    <div id="multiStatus">Noch nicht verbunden.</div>
   </section>
+  <div class="profile-bar"><label for="playerNameInput">DEIN SPIELERNAME</label><input id="playerNameInput" maxlength="18" autocomplete="nickname" placeholder="Dein Name"></div>
+  <button class="lobby-button" id="openLobbyChat">💬 FREUNDE & CHAT ÖFFNEN</button>
   <div class="mode-cards">
    <article class="mode-card survival" id="chooseSurvival" role="button" tabindex="0" aria-label="Survival starten">
     <img src="https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1100&q=85" alt="Dichter, geheimnisvoller grüner Wald">
