@@ -229,8 +229,14 @@ button{background:linear-gradient(145deg,#59634b,#30392d);border:1px solid #9da5
 <input id="accountEmail" type="email" autocomplete="email" placeholder="E-Mail-Adresse">
 <input id="accountPassword" type="password" autocomplete="current-password" placeholder="Passwort (mind. 6 Zeichen)">
 <div class="social-row"><button id="accountRegister">Konto erstellen</button><button id="accountLogin">Anmelden</button></div>
+<button id="accountResetPassword" type="button" style="width:100%;margin-top:8px">🔑 Passwort vergessen? Zurücksetzen</button>
 <button id="accountResend" type="button" style="width:100%;margin-top:8px">📧 Bestätigungs-E-Mail erneut senden</button>
 <div class="hint">Dein Spielername ist für andere sichtbar. Deine E-Mail-Adresse bleibt privat. Je nach Projekteinstellung musst du deine E-Mail zuerst bestätigen.</div>
+</div>
+<div id="passwordRecoveryPanel" style="display:none;margin-top:10px;padding:10px;border:1px solid #67d7ff;border-radius:10px">
+ <div class="social-title">🔑 NEUES PASSWORT FESTLEGEN</div>
+ <input id="newAccountPassword" type="password" autocomplete="new-password" placeholder="Neues Passwort (mind. 6 Zeichen)">
+ <button id="saveNewAccountPassword" type="button" style="width:100%;margin-top:8px">Neues Passwort speichern</button>
 </div>
 <div id="accountLoggedIn" style="display:none">
 <div id="accountIdentity" class="hint"></div><button id="accountLogout">Abmelden</button><div id="accountLevel" class="account-level">⭐ Level 1 · 0 / 100 XP</div>
@@ -853,6 +859,30 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
   say('Konto wird erstellt …');const {data,error:e}=await db.auth.signUp({email,password,options:{data:{username}}});
   if(e){say(error(e));return;}if(data.session){await refresh();say('Konto erstellt!');}else say('Bitte bestätige zuerst deine E-Mail über den Link in deinem Postfach. Danach hier anmelden.');
  }
+ async function requestPasswordReset(){
+  const email=$('accountEmail').value.trim();
+  if(!email){say('Bitte zuerst deine E-Mail-Adresse eingeben.');$('accountEmail').focus();return;}
+  $('accountResetPassword').disabled=true;say('Passwort-Reset wird angefordert …');
+  try{
+   const {error:e}=await db.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+   if(e)throw e;
+   say('Wenn für diese Adresse ein Konto besteht, wurde eine Reset-Mail angefordert. Prüfe auch Spam und Junk-E-Mail.');
+  }catch(e){say('Passwort-Reset fehlgeschlagen: '+error(e));}
+  finally{$('accountResetPassword').disabled=false;}
+ }
+ async function saveNewPassword(){
+  const password=$('newAccountPassword').value;
+  if(password.length<6){say('Bitte ein neues Passwort mit mindestens 6 Zeichen eingeben.');return;}
+  $('saveNewAccountPassword').disabled=true;
+  try{
+   const {error:e}=await db.auth.updateUser({password});
+   if(e)throw e;
+   $('newAccountPassword').value='';$('passwordRecoveryPanel').style.display='none';
+   say('Dein Passwort wurde geändert. Du kannst dich jetzt mit dem neuen Passwort anmelden.');
+   await db.auth.signOut();
+  }catch(e){say('Passwort konnte nicht geändert werden: '+error(e));}
+  finally{$('saveNewAccountPassword').disabled=false;}
+ }
  async function resendConfirmation(){
   const email=$('accountEmail').value.trim();
   if(!email){say('Bitte zuerst deine E-Mail-Adresse eingeben.');$('accountEmail').focus();return;}
@@ -942,12 +972,12 @@ setTimeout(()=>{clearInterval(loaderTimer);progress.style.width='100%';loadtext.
  function init(){
   if(!window.supabase?.createClient){say('Supabase-Bibliothek nicht geladen. Bitte Seite neu laden.');return;}
   db=window.supabase.createClient(URL,KEY);window.lifeverseDB=db;
-  $('accountRegister').onclick=register;$('accountLogin').onclick=login;$('accountResend').onclick=resendConfirmation;$('accountLogout').onclick=logout;$('playerSearchBtn').onclick=search;
+  $('accountRegister').onclick=register;$('accountLogin').onclick=login;$('accountResetPassword').onclick=requestPasswordReset;$('saveNewAccountPassword').onclick=saveNewPassword;$('accountResend').onclick=resendConfirmation;$('accountLogout').onclick=logout;$('playerSearchBtn').onclick=search;
   $('openWorldInviteMenu').onclick=()=>{$('worldInviteMenu').classList.add('visible');$('worldInviteStatus').textContent=hostingRoom?'Deine Welt ist bereit.':'Beim Einladen wird deine Welt geöffnet.';friends();};
   $('closeWorldInviteMenu').onclick=()=>$('worldInviteMenu').classList.remove('visible');
   $('worldInviteMenu').addEventListener('click',e=>{if(e.target.id==='worldInviteMenu')$('worldInviteMenu').classList.remove('visible');});
   $('playerSearch').addEventListener('keydown',e=>{if(e.key==='Enter')search();});$('dmSend').onclick=send;$('dmInput').addEventListener('keydown',e=>{if(e.key==='Enter')send();});
-  db.auth.onAuthStateChange(()=>setTimeout(()=>refresh().catch(e=>say(error(e))),0));refresh().catch(e=>say(error(e)));setInterval(()=>{if(user)requests().catch(e=>say(error(e)));},12000);
+  db.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY')$('passwordRecoveryPanel').style.display='block';setTimeout(()=>refresh().catch(e=>say(error(e))),0);});refresh().catch(e=>say(error(e)));setInterval(()=>{if(user)requests().catch(e=>say(error(e)));},12000);
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
