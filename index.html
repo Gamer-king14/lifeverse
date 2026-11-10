@@ -445,7 +445,8 @@ function spawnMobs(){
  const angle=Math.random()*Math.PI*2,distance=10+Math.random()*13;
  const x=Math.round(player.x+Math.cos(angle)*distance),z=Math.round(player.z+Math.sin(angle)*distance);
  if(riverDistance(x,z)<3.2||Math.hypot(x-player.x,z-player.z)<8)return;
- const types=mode==='survival'?['pig','cow','sheep','zombie']:['pig','cow','sheep'];
+ const isNight=(Math.cos(worldClock/DAY_LENGTH_SECONDS*Math.PI*2)+1)/2<0.22;
+ const types=mode==='survival'?(isNight?['pig','cow','sheep','zombie','zombie']:['pig','cow','sheep']):['pig','cow','sheep'];
  createMob(types[Math.floor(Math.random()*types.length)],x,z);
 }
 function updateMobs(dt){
