@@ -325,7 +325,7 @@ function pixelTexture(kind,face){
   dirt:['#795039','#895b40','#9a6848','#6b452f','#a67550'],
   stone:['#737d7d','#87908a','#9ba096','#626e70','#a6a99c'],
   wood:['#765033','#91633d','#a97749','#68452d','#bb8753'],
-  leaves:['#28623b','#347746','#43884b','#1e5333','#57934d'],
+  leaves:['#b96f91','#d58eaa','#e8a9bd','#a95e83','#f0bfd0'],
   water:['#2679ad','#328fc0','#49a6d0','#1d6799','#73c2dc'],
   workbench:['#79502f','#95643a','#ad7948','#684329','#c18a50']
  };
@@ -350,6 +350,7 @@ function pixelTexture(kind,face){
   }else{
    for(let i=0;i<30;i++){const x=Math.floor(rand()*32),y=Math.floor(rand()*32);ctx.fillStyle=i%3?'#3e7831':'#91bd59';ctx.fillRect(x,y,1+Math.floor(rand()*3),1+Math.floor(rand()*3));}
    for(let i=0;i<7;i++){ctx.strokeStyle='#a0c86a';ctx.lineWidth=1;ctx.beginPath();const x=rand()*32,y=rand()*32;ctx.moveTo(x,y);ctx.lineTo(x+2,y-3);ctx.stroke();}
+   for(let i=0;i<5;i++){const x=2+Math.floor(rand()*28),y=2+Math.floor(rand()*28);ctx.fillStyle='#f3b7cc';ctx.fillRect(x,y,2,2);ctx.fillStyle='#fff0d9';ctx.fillRect(x+1,y,1,1);}
   }
  }
  if(kind==='dirt'){for(let i=0;i<24;i++){ctx.fillStyle=i%2?'#593b2d':'#bd8b61';ctx.fillRect(rand()*32,rand()*32,1+rand()*3,1+rand()*3);}}
@@ -367,8 +368,9 @@ function pixelTexture(kind,face){
   }
  }
  if(kind==='leaves'){
-  for(let i=0;i<34;i++){const x=Math.floor(rand()*30),y=Math.floor(rand()*30);ctx.fillStyle=i%3?'#69a951':'#a0c96a';ctx.fillRect(x,y,2+Math.floor(rand()*3),2+Math.floor(rand()*3));}
-  for(let i=0;i<18;i++){ctx.clearRect(Math.floor(rand()*30),Math.floor(rand()*30),1,1);}
+  for(let i=0;i<46;i++){const x=Math.floor(rand()*30),y=Math.floor(rand()*30);ctx.fillStyle=['#f4c8d7','#f0b5ca','#9f5578','#fff0df'][Math.floor(rand()*4)];ctx.fillRect(x,y,2+Math.floor(rand()*3),2+Math.floor(rand()*3));}
+  for(let i=0;i<12;i++){ctx.fillStyle='#ffe6ee';ctx.fillRect(Math.floor(rand()*30),Math.floor(rand()*30),1,2);}
+  for(let i=0;i<12;i++){ctx.clearRect(Math.floor(rand()*30),Math.floor(rand()*30),1,1);}
  }
  if(kind==='water'){
   for(let y=4;y<32;y+=8){ctx.strokeStyle='#8bd4e7';ctx.globalAlpha=.7;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(rand()*8,y);ctx.quadraticCurveTo(12,y-2,20,y);ctx.quadraticCurveTo(26,y+2,32,y);ctx.stroke();}
