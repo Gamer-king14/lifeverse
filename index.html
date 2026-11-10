@@ -361,7 +361,7 @@ function pixelTexture(kind,face){
 }
 function pixelMat(kind,face){
  const transparent=kind==='leaves'||kind==='water';
- return new THREE.MeshStandardMaterial({map:pixelTexture(kind,face),roughness:kind==='water'?.42:1,transparent,opacity:kind==='water'?.88:1,alphaTest:kind==='leaves'?.08:0});
+ return new THREE.MeshStandardMaterial({map:pixelTexture(kind,face),roughness:(kind==='water' ? 0.42 : 1),transparent,opacity:(kind==='water' ? 0.88 : 1),alphaTest:(kind==='leaves' ? 0.08 : 0)});
 }
 const blockMaterials={
  grass:[pixelMat('grass','side'),pixelMat('grass','side'),pixelMat('grass','top'),pixelMat('dirt','side'),pixelMat('grass','side'),pixelMat('grass','side')],
