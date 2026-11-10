@@ -317,28 +317,62 @@ const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStand
 const cubeGeo=new THREE.BoxGeometry(1,1,1);
 // Eigene, grob gepixelte 16x16-Texturen im klassischen Voxel-Look.
 function pixelTexture(kind,face){
- const canvas=document.createElement('canvas');canvas.width=canvas.height=16;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=32;
  const ctx=canvas.getContext('2d'),seedBase=Array.from(kind+face).reduce((a,c)=>a+c.charCodeAt(0),17);
  let seed=seedBase;const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
  const palettes={grass:['#477d32','#548e38','#609a3e','#3d702d','#6aa344'],dirt:['#79502f','#865a35','#93623a','#70472a','#9a6b40'],stone:['#777c7c','#858b8a','#969b98','#686e70','#a4a7a1'],wood:['#80502b','#965f32','#aa7040','#704323','#bd8950'],leaves:['#245d2e','#2d7134','#397d38','#1e5128','#478b3e'],water:['#247bb4','#2c8ac4','#399bd0','#1d6da5','#56add8'],workbench:['#79502b','#986337','#b47a43','#684322','#d09a57']};
  const p=palettes[kind]||palettes.grass;
- for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+ for(let y=0;y<32;y++)for(let x=0;x<32;x++){
   let color=p[Math.floor(rnd()*p.length)];
-  if(kind==='grass'&&face==='top'&&rnd()>.75)color='#73ad48';
-  if(kind==='grass'&&face==='side')color=y<3?(rnd()>.35?'#4e9137':'#609e40'):p[Math.floor(rnd()*p.length)];
-  if(kind==='stone'&&rnd()>.88)color='#b0b3aa';
-  if(kind==='leaves'&&rnd()>.82)color='#174b25';
-  if(kind==='wood'&&face==='side')color=(x%5===0)?'#684323':(x%5===1?'#bd8950':color);
-  if(kind==='wood'&&face==='end'&&((x-7.5)**2+(y-7.5)**2<18))color=(Math.floor((x+y)/3)%2?'#bd8950':'#704323');
-  if(kind==='workbench'&&face==='top')color=(x<3||x>12||y<3||y>12)?'#684322':(x%4===0||y%4===0?'#d09a57':color);
-  if(kind==='workbench'&&face==='side'&&y<3)color='#d09a57';
-  // Kleine, bewusst pixelige Licht- und Schattenflecken geben den Blöcken mehr Tiefe.
-  if(kind==='dirt'&&rnd()>.91)color=rnd()>.5?'#684326':'#a87548';
-  if(kind==='grass'&&face==='top'&&rnd()>.9)color=rnd()>.5?'#376b2d':'#82b94e';
-  if(kind==='stone'&&rnd()>.93)color=rnd()>.5?'#555d60':'#c0c2b9';
-  if(kind==='leaves'&&rnd()>.9)color=rnd()>.5?'#153f24':'#58a34a';
-  if(kind==='wood'&&face==='side'&&rnd()>.9)color=rnd()>.5?'#57351f':'#d09a5c';
+  if(kind==='grass'&&face==='top'){
+   color=rnd()>.78?'#73ad48':p[Math.floor(rnd()*p.length)];
+   if(rnd()>.94)color='#315f29';
+  }
+  if(kind==='grass'&&face==='side'){
+   color=y<5?(rnd()>.28?'#4e9137':'#70a94a'):palettes.dirt[Math.floor(rnd()*palettes.dirt.length)];
+   if(y>=5&&rnd()>.91)color='#684326';
+  }
+  if(kind==='dirt'&&rnd()>.86)color=rnd()>.5?'#684326':'#a87548';
+  if(kind==='dirt'&&rnd()>.96)color='#5d3b27';
+  if(kind==='stone'){
+   if(rnd()>.86)color='#b0b3aa';
+   if(rnd()>.95)color='#555d60';
+   if((x+y)%11===0&&rnd()>.55)color='#62696a';
+  }
+  if(kind==='wood'&&face==='side'){
+   const grain=x%8;
+   if(grain===0||grain===1)color='#684323';
+   else if(grain===2)color='#bd8950';
+   if(x%16===7&&y%13<3)color='#57351f';
+  }
+  if(kind==='wood'&&face==='end'){
+   const d=Math.hypot(x-15.5,y-15.5);
+   color=d<3?'#bd8950':d<6?'#704323':d<9?'#bd8950':color;
+   if(Math.abs(x-15.5)<1||Math.abs(y-15.5)<1)color='#57351f';
+  }
+  if(kind==='leaves'){
+   if(rnd()>.82)color='#174b25';
+   if(rnd()>.94)color='#58a34a';
+  }
+  if(kind==='water'){
+   if((y%9===2||y%9===3)&&rnd()>.38)color='#69b9e5';
+   if(rnd()>.94)color='#17669e';
+  }
+  if(kind==='workbench'){
+   if(face==='top')color=(x<3||x>28||y<3||y>28)?'#684322':(x%8===0||y%8===0?'#d09a57':color);
+   if(face==='side'&&y<5)color='#d09a57';
+   if(face==='side'&&(x%10===0||x%10===1))color='#684322';
+  }
   ctx.fillStyle=color;ctx.fillRect(x,y,1,1);
+ }
+ // Deutliche, kleine Materialdetails sorgen auch aus der Nähe für erkennbare Oberflächen.
+ if(kind==='stone'){
+  ctx.fillStyle='#555d60';ctx.fillRect(5,8,5,1);ctx.fillRect(9,8,1,4);ctx.fillRect(21,22,6,1);
+  ctx.fillStyle='#b0b3aa';ctx.fillRect(6,9,3,1);ctx.fillRect(22,23,3,1);
+ }
+ if(kind==='dirt'){
+  ctx.fillStyle='#684326';ctx.fillRect(7,6,2,2);ctx.fillRect(23,18,3,2);
+  ctx.fillStyle='#b78350';ctx.fillRect(16,11,2,2);ctx.fillRect(4,25,2,2);
  }
  const tex=new THREE.CanvasTexture(canvas);tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;tex.colorSpace=THREE.SRGBColorSpace;return tex;
 }
