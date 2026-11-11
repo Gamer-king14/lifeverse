@@ -948,8 +948,31 @@ const pauseLogo=document.getElementById('pauseLogo');pauseLogo.addEventListener(
 document.getElementById('resumeGame').onclick=()=>togglePause(false);
 document.getElementById('pauseSave').onclick=()=>{saveCurrentWorld(true);saveCloudWorld(true);};
 document.getElementById('makeWorldServer').onclick=async()=>{const name=document.getElementById('worldServerName').value.trim().slice(0,28)||'Meine Welt';const pin=document.getElementById('worldServerPin').value.trim();const status=document.getElementById('worldServerStatus');if(!activeSaveMode){status.textContent='Bitte zuerst eine Welt öffnen.';return;}if(!/^\\d{4,8}$/.test(pin)){status.textContent='Bitte einen Sicherheitscode mit 4 bis 8 Ziffern eingeben.';return;}if(!window.lifeverseCurrentAccountId){status.textContent='Bitte zuerst im Freunde-&-Chat-Menü anmelden.';return;}status.textContent='Speichere deine aktuelle Welt in der Cloud …';activeServerName=name;document.getElementById('serverNameInput').value=name;document.getElementById('serverPasswordInput').value=pin;saveCurrentWorld(false);await saveCloudWorld(false);status.textContent='Welt gespeichert. Verbinde mit dem Multiplayer-Dienst …';const ready=await startHosting();status.textContent=ready?'Deine Welt läuft jetzt als Server. Lass LIFEVERSE geöffnet, damit Freunde beitreten können.':'Serverstart nicht abgeschlossen. Bitte beachte die Fehlermeldung im Multiplayer-Menü.';};
-document.getElementById('switchSurvival').onclick=()=>{saveCurrentWorld(false);enterGame('survival');};
-document.getElementById('switchCreative').onclick=()=>{saveCurrentWorld(false);enterGame('creative');};
+function switchGameMode(nextMode){
+ if(!activeSaveMode||activeSaveMode===nextMode)return;
+ saveCurrentWorld(false);
+ activeSaveMode=nextMode;
+ gamePaused=false;
+ document.getElementById('pauseMenu').classList.remove('visible');
+ if(nextMode==='survival'){
+  firstPerson=true;
+  const fp=document.getElementById('firstPersonBtn');
+  fp.classList.add('active');
+  fp.innerHTML='👁️<br>THIRD PERSON';
+  setMode('survival');
+  setSurvivalAction('mine');
+  updateFollowCamera(false);
+ }else{
+  firstPerson=false;
+  setMode('build');
+  eraseMode=false;
+  document.getElementById('eraseBtn').classList.remove('active');
+  document.getElementById('status').textContent='Creative · Frei bauen und gestalten';
+ }
+ saveCurrentWorld(false);
+}
+document.getElementById('switchSurvival').onclick=()=>switchGameMode('survival');
+document.getElementById('switchCreative').onclick=()=>switchGameMode('creative');
 document.getElementById('leaveGame').onclick=()=>{saveCurrentWorld(false);togglePause(false);activeSaveMode=null;activeSharedWorldId=null;document.getElementById('modeSelect').classList.add('visible');};
 document.getElementById('randomSeedBtn').onclick=()=>{const input=document.getElementById('worldSeedInput');if(input)input.value=String(randomWorldSeed());applySeedFromInput();};
 document.getElementById('worldSeedInput').addEventListener('change',applySeedFromInput);
